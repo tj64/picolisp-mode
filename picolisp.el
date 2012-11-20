@@ -1,19 +1,25 @@
 ;;;;;; picolisp-mode: Major mode to edit picoLisp.
-;;;;;; Version: 1.2
+;;;;;; Version: 1.3
 
 ;;; Copyright (c) 2009, Guillermo R. Palavecino
+;;; Copyright (c) 2011, 2012 Thorsten Jolitz
 
 ;; This file is NOT part of GNU emacs.
 
 ;;;; Credits:
 ;; It's based on GNU emacs' lisp-mode and scheme-mode.
 ;; Some bits were taken from paredit.el
+;; Two functions were copied from Xah Lee (http://xahlee.org/)
 ;;
 ;;;; Contact:
-;; For comments, bug reports, questions, etc, you can contact me via IRC
-;; to the user named grpala (or armadillo) on irc.freenode.net in the
-;; #picolisp channel or via email to the author's nickname at gmail.com
-;;
+;; For comments, bug reports, questions, etc, you can contact the
+;; first author via IRC to the user named grpala (or armadillo) on
+;; irc.freenode.net in the #picolisp channel or via email to the
+;; author's nickname at gmail.com 
+;; 
+;; Or contact the second author and curent maintainer via email: 
+;; t <lastname in lowercase letters> AT gmail DOT com
+;; 
 ;;;; License:
 ;; This work is released under the GPL 2 or (at your option) any later
 ;; version.
@@ -166,9 +172,12 @@
   (let ((map (make-sparse-keymap "Picolisp")))
     (set-keymap-parent map lisp-mode-shared-map)
 
-    (define-key map "\C-c k" 'picolisp-edit-K)
-    (define-key map "\C-c q" 'picolisp-edit-Q)
-    (define-key map "\C-q" (save-buffers-kill-terminal 1))
+    ;; more convenient than "C-ck"
+    (define-key map "\C-c\C-v" 'picolisp-edit-K)
+    ;; more convenient than "C-cq"
+    (define-key map "\C-c\C-c" 'picolisp-edit-Q) 
+    ;; not necesary: picolisp-edit-Q exits on last undo
+    ;; (define-key map "\C-q" '(save-buffers-kill-terminal 1))
 
     (define-key map [menu-bar picolisp] (cons "Picolisp" map))
     (define-key map [run-picolisp] '("Run Inferior Picolisp" . run-picolisp))
@@ -605,7 +614,7 @@ does\)."
         (forward-word)
         (forward-word -1)
         (mark-word))
-      (let* ((thing (thing-at-point 'word))  ; FIXME better use 'symbol ?
+      (let* ((thing (thing-at-point 'word))  
              (unit (get-selection-or-unit 'word))
              (line (line-number-at-pos))
              (transient-p
