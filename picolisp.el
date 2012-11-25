@@ -614,8 +614,7 @@ does\)."
         (forward-word)
         (forward-word -1)
         (mark-word))
-      (let* ((thing (thing-at-point 'word))  
-             (unit (get-selection-or-unit 'word))
+      (let* ((unit (get-selection-or-unit 'word))
              (line (line-number-at-pos))
              (transient-p
               (string-equal (get-text-property (point) 'face)
