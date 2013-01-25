@@ -16,7 +16,7 @@
 ;; ** Contact:
 
 ;; For comments, bug reports, questions, etc, you can contact the author via
-;; email
+;; email: (format "tjolitz%sgmail%s" "@" ".com")
 
 ;; ** License:
 
@@ -25,10 +25,88 @@
 
 ;; * Requires
 
+(require 'org)
+(require 'ob-core)   ; changed from ob?
+(require 'ob-picolisp)
+(require 'ob-plantuml)
+
+;; * Variables
+;; ** Consts
+
+(defconst picodoc-version "0.1"
+  "PicoDoc version number.")
+
+(defconst picodoc-plantuml-line "--"
+  "PlantUML symbol for line.")
+
+(defconst picodoc-plantuml-dotted-line ".."
+  "PlantUML symbol for dotted line.")
+
+(defconst picodoc-plantuml-left-arrow "<"
+  "PlantUML symbol for left arrow.")
+
+(defconst picodoc-plantuml-right-arrow ">"
+  "PlantUML symbol for right arrow.")
+
+(defconst picodoc-plantuml-left-extension "<|"
+  "PlantUML symbol for left extension.")
+
+(defconst picodoc-plantuml-right-extension "|>"
+  "PlantUML symbol for right extension.")
+
+(defconst picodoc-plantuml-composition "*"
+  "PlantUML symbol for composition.")
+
+(defconst picodoc-plantuml-agregation "o"
+  "PlantUML symbol for agregation.")
 
 
-;; * Variable
+;; ** Vars
+;; *** Variables
+;; *** Hooks
+
+(defvar picodoc-hook nil
+  "Hook runs when PicoDoc is loaded.")
+
+;; ** Customs
+;; *** Groups
+
+(defgroup picodoc nil
+  "Library for extracting Org-mode doc-files from PicoLisp source-files."
+  :prefix "picodoc-"
+  :group 'lisp
+  :link '(url-link "http://picolisp.com/5000/!wiki?home"))
+
+
+;; *** Variables
+
+(defcustom picodoc-function-regexp "^[ \t]*(de "
+  "Regexp used to identify PicoLisp function defitions."
+  :group 'picodoc
+  :type 'regexp)
+
+(defcustom picodoc-class-regexp "^[ \t]*(class "
+  "Regexp used to identify PicoLisp class defitions."
+  :group 'picodoc
+  :type 'regexp)
+
+(defcustom picodoc-method-regexp "^[ \t]*(dm "
+  "Regexp used to identify PicoLisp method defitions."
+  :group 'picodoc
+  :type 'regexp)
+
+(defcustom picodoc-relation-regexp "^[ \t]*(rel "
+  "Regexp used to identify PicoLisp relation defitions."
+  :group 'picodoc
+  :type 'regexp)
+
+
 ;; * Functions
+;; ** Source Code
+;; *** Parse and Convert
+;; ** Tests
+;; *** Parse and Convert
+
 ;; * Outro
 
 (provide 'picodoc)
