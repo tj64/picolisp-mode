@@ -60,6 +60,18 @@
 (defconst picodoc-plantuml-agregation "o"
   "PlantUML symbol for agregation.")
 
+(defconst picodoc-org-scrname "#+srcname "
+  "Org syntax for naming a source block.")
+
+(defconst picodoc-org-beg-src-plantuml "#+begin_src plantuml :file "
+  "Org syntax for beginning a plantuml source block.")
+
+(defconst picodoc-org-beg-src-picolisp "#+begin_src picolisp "
+  "Org syntax for beginning a picolisp source block.")
+
+(defconst picodoc-org-end-src "#+end_src"
+  "Org syntax for ending a source block.")
+
 
 ;; ** Vars
 ;; *** Variables
