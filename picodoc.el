@@ -36,29 +36,37 @@
 (defconst picodoc-version "0.1"
   "PicoDoc version number.")
 
-(defconst picodoc-plantuml-line "--"
-  "PlantUML symbol for line.")
+(defconst picodoc-header-string
+  (concat
+   "#+TITLE:      %S\n"
+   "#+LANGUAGE:   en\n"
+   "#+DATE:       %s\n\n"
+   "/Documentation for PicoLisp Source File %S/\n\n")
+  "String to be used with `format' for insertion as doc-file header")
 
-(defconst picodoc-plantuml-dotted-line ".."
-  "PlantUML symbol for dotted line.")
+;; (defconst picodoc-plantuml-line "--"
+;;   "PlantUML symbol for line.")
 
-(defconst picodoc-plantuml-left-arrow "<"
-  "PlantUML symbol for left arrow.")
+;; (defconst picodoc-plantuml-dotted-line ".."
+;;   "PlantUML symbol for dotted line.")
 
-(defconst picodoc-plantuml-right-arrow ">"
-  "PlantUML symbol for right arrow.")
+;; (defconst picodoc-plantuml-left-arrow "<"
+;;   "PlantUML symbol for left arrow.")
 
-(defconst picodoc-plantuml-left-extension "<|"
-  "PlantUML symbol for left extension.")
+;; (defconst picodoc-plantuml-right-arrow ">"
+;;   "PlantUML symbol for right arrow.")
 
-(defconst picodoc-plantuml-right-extension "|>"
-  "PlantUML symbol for right extension.")
+;; (defconst picodoc-plantuml-left-extension "<|"
+;;   "PlantUML symbol for left extension.")
 
-(defconst picodoc-plantuml-composition "*"
-  "PlantUML symbol for composition.")
+;; (defconst picodoc-plantuml-right-extension "|>"
+;;   "PlantUML symbol for right extension.")
 
-(defconst picodoc-plantuml-agregation "o"
-  "PlantUML symbol for agregation.")
+;; (defconst picodoc-plantuml-composition "*"
+;;   "PlantUML symbol for composition.")
+
+;; (defconst picodoc-plantuml-agregation "o"
+;;   "PlantUML symbol for agregation.")
 
 (defconst picodoc-org-scrname "#+srcname "
   "Org syntax for naming a source block.")
@@ -116,6 +124,81 @@
 ;; * Functions
 ;; ** Source Code
 ;; *** Parse and Convert
+
+(defun picodoc-write-doc (&optional in-file out-file)
+  "Parse PicoLisp sources and write Org-mode documentation.
+
+Parse the current buffer or PicoLisp source file IN-FILE and
+  write its documentation to <buffer-name>.org (or Org-mode file
+  OUT-FILE). Overrides existing output files without warning."
+  (interactive)
+  (let* (
+         ;; input file
+         (in (or (and in-file
+                      (string-equal (file-name-extension in-file) "l")
+                      (get-buffer-create in-file))
+                 (and buffer-file-name
+                      (string-equal
+                       (file-name-extension
+                        (buffer-file-name)) "l")
+                      (current-buffer))))
+         (in-nondir (and in
+                         (file-name-nondirectory
+                          (buffer-file-name in))))
+         ;; output-file
+         (out (or (and out-file
+                       (string-equal (file-name-extension out-file) "org")
+                       (find-file-noselect out-file 'NOWARN))
+                  (and in (find-file-noselect
+                           (concat (file-name-sans-extension
+                                    (buffer-file-name in)) ".org") 'NOWARN)))))
+    (if (not in)
+        (message (concat
+                  "No valid PicoLisp source file (extension '.l') file"
+                  "as input"))
+      (message "in: %s %s %s, out: %s %s %s"
+               in (bufferp in) (buffer-file-name in)
+               out (bufferp out) (buffer-file-name out)
+               )
+      ;; output file is not empty
+      (and (> (buffer-size out) 0)
+           (if (y-or-n-p "Output-file is not empty - overwrite? ")
+               ;; delete contents of existing output file
+               (save-excursion
+                 (set-buffer out)
+                 (widen)
+                 (delete-region (point-min) (point-max)))
+             ;; create new empty output file with unique name
+             (setq out
+                   (find-file-noselect
+                    (concat (file-name-sans-extension
+                             (buffer-file-name in))
+                            "<"
+                            (file-name-nondirectory
+                             (make-temp-file ""))
+                            ">"
+                            ".org") 'NOWARN))))
+      (save-excursion
+        (set-buffer out)
+        (org-check-for-org-mode)
+        (beginning-of-buffer)
+        (insert
+         (format picodoc-header-string
+                 in-nondir
+                 (format-time-string
+                  "<%Y-%m-%d %a %H:%M>")
+                 in-nondir))
+        (if 
+            (set-buffer in)
+            (save-excursion
+              (save-restriction
+                (widen)
+                (goto-char (point-min))
+                ;; (while (not eobp)
+                ;;   ( (looking-at 
+
+                )))))))
+
 ;; ** Tests
 ;; *** Parse and Convert
 
