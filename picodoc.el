@@ -228,6 +228,7 @@ Parse the current buffer or PicoLisp source file IN-FILE and
               (goto-char (point-min))
               (while (not (eobp))
                 (cond
+                 ;; function definition
                  ((looking-at picodoc-function-regexp)
                   (let ((match (match-string 0)))
                   (with-current-buffer out
@@ -239,9 +240,13 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                     (org-insert-heading-after-current)
                     (org-demote)
                     (insert match))))
+                 ;; class definition
                  ((looking-at picodoc-class-regexp) )
+                 ;; class extension
                  ;; ((looking-at picodoc-extend-regexp) ) ; difficult
+                 ;; method definition
                  ((looking-at picodoc-method-regexp) )
+                 ;; relation definition
                  ((looking-at picodoc-relation-regexp) ))
                 (forward-char))
               ))))))))
