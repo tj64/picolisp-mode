@@ -68,11 +68,11 @@
 ;; (defconst picodoc-plantuml-agregation "o"
 ;;   "PlantUML symbol for agregation.")
 
-(defconst picodoc-org-scrname "#+srcname "
+(defconst picodoc-org-scrname "#+name: "
   "Org syntax for naming a source block.")
 
-(defconst picodoc-org-beg-src-plantuml "#+begin_src plantuml :file "
-  "Org syntax for beginning a plantuml source block.")
+(defconst picodoc-org-beg-src-plantuml "#+begin_src plantuml :file %s.png"
+  "Org syntax for beginning a plantuml source block, to be used with `format'.")
 
 (defconst picodoc-org-beg-src-picolisp "#+begin_src picolisp "
   "Org syntax for beginning a picolisp source block.")
@@ -145,7 +145,10 @@
   :group 'picodoc
   :type 'string)
 
-
+(defcustom picodoc-class-diagram-suffix "-class-diagram"
+  "String used as suffix for naming plantuml code-blocks and graphic-files."
+  :group 'picodoc
+  :type 'string)
 
 ;; * Functions
 ;; ** Source Code
@@ -182,10 +185,11 @@ Parse the current buffer or PicoLisp source file IN-FILE and
         (message (concat
                   "No valid PicoLisp source file (extension '.l') file"
                   "as input"))
-      (message "in: %s %s %s, out: %s %s %s"
-               in (bufferp in) (buffer-file-name in)
-               out (bufferp out) (buffer-file-name out)
-               )
+      ;; (message "in: %s %s %s, out: %s %s %s"
+      ;;          in (bufferp in) (buffer-file-name in)
+      ;;          out (bufferp out) (buffer-file-name out)
+      ;;          )
+
       ;; output file is not empty
       (and (> (buffer-size out) 0)
            (if (y-or-n-p "Output-file is not empty - overwrite? ")
@@ -209,6 +213,7 @@ Parse the current buffer or PicoLisp source file IN-FILE and
         (with-current-buffer out
           (org-check-for-org-mode)
           (beginning-of-buffer)
+          ;; header
           (insert
            (format picodoc-header-string
                    in-nondir
@@ -216,8 +221,10 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                     "<%Y-%m-%d %a %H:%M>")
                    in-nondir))
           (end-of-buffer)
+          ;; top-level entry
           (insert "* Definitions")
           (newline)
+          ;; second-level entry 'functions'
           (insert (concat "** " picodoc-functions-headline))
           (beginning-of-line)
           (org-insert-property-drawer)
@@ -225,8 +232,10 @@ Parse the current buffer or PicoLisp source file IN-FILE and
           (org-entry-put (point) "results" "silent")
           (end-of-buffer)
           (newline)
+          ;; second-level entry 'classes and methods'
           (insert (concat "** " picodoc-classes-headline))
           (newline)
+          ;; third-level entry 'class diagram'
           (insert (concat "*** " picodoc-class-diagram-headline))
           (beginning-of-line)
           (org-insert-property-drawer)
@@ -234,60 +243,91 @@ Parse the current buffer or PicoLisp source file IN-FILE and
           (org-entry-put (point) "results" "replace")
           (end-of-buffer)
           (newline)
+          ;; plantuml code block
           (insert
            (concat
             picodoc-org-scrname
             (file-name-sans-extension in-nondir)
-            "-class-diagram"))
+            picodoc-class-diagram-suffix))
           (newline)
-          (insert picodoc-org-beg-src-plantuml)
+          (insert
+           (format
+            picodoc-org-beg-src-plantuml
+            (concat
+             (file-name-sans-extension in-nondir)
+             picodoc-class-diagram-suffix)))
+          (newline)
+          (insert (format "title <b>%s</b>%sClass Diagram" in-nondir "\\n"))
           (newline 2)
           (insert picodoc-org-end-src)
 
-        ;; parse and convert input file
-        (with-current-buffer in
-          (save-excursion
-            (save-restriction
-              (widen)
-              (goto-char (point-min))
-              (while (not (eobp))
-                (cond
-                 ;; function definition
-                 ((looking-at picodoc-function-regexp)
-                  (let ((match (match-string 0))
-                        (function-name (match-string 2)))
-                  (with-current-buffer out
-                    (goto-char
-                     (org-find-exact-headline-in-buffer
-                      picodoc-functions-headline
-                      (current-buffer)
-                      'POS-ONLY))
-                    (org-insert-heading-after-current)
-                    (org-demote)
-                    (insert function-name)
-                    (newline 2)
-                    (insert picodoc-org-beg-src-picolisp)
-                    (newline)
-                    (insert (concat match " ... )"))
-                    (newline)
-                    (insert picodoc-org-end-src))))
-                 ;; class definition
-                 ((looking-at picodoc-class-regexp)
-                  (let ((classes (match-string 2)))
-                    (with-current-buffer out
-                      (goto-char
-                       (org-find-exact-headline-in-buffer
-                        picodoc-classes-headline
-                        (current-buffer)
-                        'POS-ONLY)))))
-                 ;; class extension
-                 ;; ((looking-at picodoc-extend-regexp) ) ; difficult
-                 ;; method definition
-                 ((looking-at picodoc-method-regexp) )
-                 ;; relation definition
-                 ((looking-at picodoc-relation-regexp) ))
-                (forward-char))
-              ))))))))
+          ;; parse and convert input file
+          (with-current-buffer in
+            (save-excursion
+              (save-restriction
+                (widen)
+                (goto-char (point-min))
+                (while (not (eobp))
+                  (cond
+                   ;; function definitions
+                   ((looking-at picodoc-function-regexp)
+                    (let ((match (match-string 0))
+                          (function-name (match-string 2)))
+                      (with-current-buffer out
+                        (goto-char
+                         (org-find-exact-headline-in-buffer
+                          picodoc-functions-headline
+                          (current-buffer)
+                          'POS-ONLY))
+                        (org-insert-heading-after-current)
+                        (org-demote)
+                        (insert function-name)
+                        (newline 2)
+                        (insert picodoc-org-beg-src-picolisp)
+                        (newline)
+                        (insert (concat match " ... )"))
+                        (newline)
+                        (insert picodoc-org-end-src)
+                        (newline))))
+                   ;; class definitions
+                   ((looking-at picodoc-class-regexp)
+                    (let* ((classes (match-string 2))
+                           (class-list
+                            (split-string-and-unquote
+                             classes " "))
+                           (new-class
+                            (car class-list))
+                           (parent-classes
+                            (and (> (length class-list) 1)
+                                 (cdr class-list))))
+                      (with-current-buffer out
+                        (org-babel-goto-named-src-block
+                         (concat
+                          (file-name-sans-extension in-nondir)
+                          picodoc-class-diagram-suffix))
+                        (re-search-forward
+                         org-babel-src-block-regexp)
+                        (forward-line -1)
+                        (and parent-classes
+                             (mapc
+                              (lambda (parent)
+                                (insert
+                                 (format "%s <|-- %s\n"
+                                         (cadr (split-string parent "+"))
+                                         (cadr (split-string new-class "+")))))
+                              parent-classes)))))
+                   ;; class extensions
+                   ;; ((looking-at picodoc-extend-regexp) ) ; difficult
+
+                   ;; relation definitions
+                   ((looking-at picodoc-relation-regexp)
+                    (let (())))
+                   ;; method definitions
+                   ((looking-at picodoc-method-regexp)
+                    (let (())))
+                   )
+                  (forward-char))
+                ))))))))
 
 ;; ** Tests
 ;; *** Parse and Convert
