@@ -115,6 +115,8 @@
 (defcustom picodoc-extend-regexp
 "\\(^[ \\t]*\\)\\((extend \\)\\([^)]+\\)\\()\\)"
   "Regexp used to identify PicoLisp extend definitions."
+  :group 'picodoc
+  :type 'regexp)
 
 (defcustom picodoc-method-regexp
   "\\(^[ \\t]*(dm \\)\\([^ ]+\\( (\\)\\)\\([^)]+\\)\\()\\)"
@@ -127,6 +129,17 @@
   "Regexp used to identify PicoLisp relation definitions."
   :group 'picodoc
   :type 'regexp)
+
+(defcustom picodoc-functions-headline "Functions"
+  "String used as headline for subtree with function definitions."
+  :group 'picodoc
+  :type 'string)
+
+(defcustom picodoc-classes-headline "Classes and Methods"
+  "String used as headline for subtree with class definitions."
+  :group 'picodoc
+  :type 'string)
+
 
 
 ;; * Functions
@@ -188,36 +201,50 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                             ".org") 'NOWARN))))
       (save-excursion
         ;; prepare output buffer
-        (with-current-buffer  out
-        (org-check-for-org-mode)
-        (beginning-of-buffer)
-        (insert
-         (format picodoc-header-string
-                 in-nondir
-                 (format-time-string
-                  "<%Y-%m-%d %a %H:%M>")
-                 in-nondir))
-        (end-of-buffer)
-        (insert "* Definitions")
-        (org-insert-property-drawer)
-        (org-entry-put (point) "exports" "both")
-        (org-entry-put (point) "results" "replace")
-        (end-of-buffer)
-        (next-line)
-        (insert "** Functions")
-        (next-line)
-        (insert "** Classes and Methods"))
+        (with-current-buffer out
+          (org-check-for-org-mode)
+          (beginning-of-buffer)
+          (insert
+           (format picodoc-header-string
+                   in-nondir
+                   (format-time-string
+                    "<%Y-%m-%d %a %H:%M>")
+                   in-nondir))
+          (end-of-buffer)
+          (insert "* Definitions")
+          (org-insert-property-drawer)
+          (org-entry-put (point) "exports" "both")
+          (org-entry-put (point) "results" "replace")
+          (end-of-buffer)
+          (newline)
+          (insert (concat "** " picodoc-functions-headline))
+          (newline)
+          (insert (concat "** " picodoc-classes-headline))
         ;; parse and convert input file
         (with-current-buffer in
           (save-excursion
             (save-restriction
               (widen)
               (goto-char (point-min))
-              (while (not eobp)
+              (while (not (eobp))
                 (cond
-                 ((looking-at 
-
-                ))))))))
+                 ((looking-at picodoc-function-regexp)
+                  (let ((match (match-string 0)))
+                  (with-current-buffer out
+                    (goto-char
+                     (org-find-exact-headline-in-buffer
+                      picodoc-functions-headline
+                      (current-buffer)
+                      'POS-ONLY))
+                    (org-insert-heading-after-current)
+                    (org-demote)
+                    (insert match))))
+                 ((looking-at picodoc-class-regexp) )
+                 ;; ((looking-at picodoc-extend-regexp) ) ; difficult
+                 ((looking-at picodoc-method-regexp) )
+                 ((looking-at picodoc-relation-regexp) ))
+                (forward-char))
+              ))))))))
 
 ;; ** Tests
 ;; *** Parse and Convert
