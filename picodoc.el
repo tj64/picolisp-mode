@@ -140,6 +140,11 @@
   :group 'picodoc
   :type 'string)
 
+(defcustom picodoc-class-diagram-headline "Class Diagram"
+  "String used as headline for subtree with class diagram."
+  :group 'picodoc
+  :type 'string)
+
 
 
 ;; * Functions
@@ -212,14 +217,33 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                    in-nondir))
           (end-of-buffer)
           (insert "* Definitions")
+          (newline)
+          (insert (concat "** " picodoc-functions-headline))
+          (beginning-of-line)
+          (org-insert-property-drawer)
+          (org-entry-put (point) "exports" "code")
+          (org-entry-put (point) "results" "silent")
+          (end-of-buffer)
+          (newline)
+          (insert (concat "** " picodoc-classes-headline))
+          (newline)
+          (insert (concat "*** " picodoc-class-diagram-headline))
+          (beginning-of-line)
           (org-insert-property-drawer)
           (org-entry-put (point) "exports" "both")
           (org-entry-put (point) "results" "replace")
           (end-of-buffer)
           (newline)
-          (insert (concat "** " picodoc-functions-headline))
+          (insert
+           (concat
+            picodoc-org-scrname
+            (file-name-sans-extension in-nondir)
+            "-class-diagram"))
           (newline)
-          (insert (concat "** " picodoc-classes-headline))
+          (insert picodoc-org-beg-src-plantuml)
+          (newline 2)
+          (insert picodoc-org-end-src)
+
         ;; parse and convert input file
         (with-current-buffer in
           (save-excursion
@@ -230,7 +254,8 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                 (cond
                  ;; function definition
                  ((looking-at picodoc-function-regexp)
-                  (let ((match (match-string 0)))
+                  (let ((match (match-string 0))
+                        (function-name (match-string 2)))
                   (with-current-buffer out
                     (goto-char
                      (org-find-exact-headline-in-buffer
@@ -239,9 +264,22 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                       'POS-ONLY))
                     (org-insert-heading-after-current)
                     (org-demote)
-                    (insert match))))
+                    (insert function-name)
+                    (newline 2)
+                    (insert picodoc-org-beg-src-picolisp)
+                    (newline)
+                    (insert (concat match " ... )"))
+                    (newline)
+                    (insert picodoc-org-end-src))))
                  ;; class definition
-                 ((looking-at picodoc-class-regexp) )
+                 ((looking-at picodoc-class-regexp)
+                  (let ((classes (match-string 2)))
+                    (with-current-buffer out
+                      (goto-char
+                       (org-find-exact-headline-in-buffer
+                        picodoc-classes-headline
+                        (current-buffer)
+                        'POS-ONLY)))))
                  ;; class extension
                  ;; ((looking-at picodoc-extend-regexp) ) ; difficult
                  ;; method definition
