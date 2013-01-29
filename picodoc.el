@@ -100,23 +100,31 @@
 
 ;; *** Variables
 
-(defcustom picodoc-function-regexp "^[ \t]*(de "
-  "Regexp used to identify PicoLisp function defitions."
+(defcustom picodoc-function-regexp
+"\\(^[ \\t]*(de \\)\\([^ ]+\\)\\( (?\\)\\([^()[:ascii:]]*\\)\\([ [:word:]]+\\)\\()?\\)"
+  "Regexp used to identify PicoLisp function definitions."
   :group 'picodoc
   :type 'regexp)
 
-(defcustom picodoc-class-regexp "^[ \t]*(class "
-  "Regexp used to identify PicoLisp class defitions."
+(defcustom picodoc-class-regexp
+  "\\(^[ \\t]*(class \\)\\([^)]+\\)\\()\\)"
+  "Regexp used to identify PicoLisp class definitions."
   :group 'picodoc
   :type 'regexp)
 
-(defcustom picodoc-method-regexp "^[ \t]*(dm "
-  "Regexp used to identify PicoLisp method defitions."
+(defcustom picodoc-extend-regexp
+"\\(^[ \\t]*\\)\\((extend \\)\\([^)]+\\)\\()\\)"
+  "Regexp used to identify PicoLisp extend definitions."
+
+(defcustom picodoc-method-regexp
+  "\\(^[ \\t]*(dm \\)\\([^ ]+\\( (\\)\\)\\([^)]+\\)\\()\\)"
+  "Regexp used to identify PicoLisp method definitions."
   :group 'picodoc
   :type 'regexp)
 
-(defcustom picodoc-relation-regexp "^[ \t]*(rel "
-  "Regexp used to identify PicoLisp relation defitions."
+(defcustom picodoc-relation-regexp
+"\\(^[ \\t]*(rel \\)\\([^)]+\\)\\( (\\)\\([^)]+\\)\\() ?\\)\\([^()]*\\)\\((?\\)\\([^)]*\\)\\())?\\)"
+  "Regexp used to identify PicoLisp relation definitions."
   :group 'picodoc
   :type 'regexp)
 
@@ -179,7 +187,8 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                             ">"
                             ".org") 'NOWARN))))
       (save-excursion
-        (set-buffer out)
+        ;; prepare output buffer
+        (with-current-buffer  out
         (org-check-for-org-mode)
         (beginning-of-buffer)
         (insert
@@ -188,16 +197,27 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                  (format-time-string
                   "<%Y-%m-%d %a %H:%M>")
                  in-nondir))
-        (if 
-            (set-buffer in)
-            (save-excursion
-              (save-restriction
-                (widen)
-                (goto-char (point-min))
-                ;; (while (not eobp)
-                ;;   ( (looking-at 
+        (end-of-buffer)
+        (insert "* Definitions")
+        (org-insert-property-drawer)
+        (org-entry-put (point) "exports" "both")
+        (org-entry-put (point) "results" "replace")
+        (end-of-buffer)
+        (next-line)
+        (insert "** Functions")
+        (next-line)
+        (insert "** Classes and Methods"))
+        ;; parse and convert input file
+        (with-current-buffer in
+          (save-excursion
+            (save-restriction
+              (widen)
+              (goto-char (point-min))
+              (while (not eobp)
+                (cond
+                 ((looking-at 
 
-                )))))))
+                ))))))))
 
 ;; ** Tests
 ;; *** Parse and Convert
