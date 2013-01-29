@@ -113,13 +113,13 @@
   :type 'regexp)
 
 (defcustom picodoc-extend-regexp
-"\\(^[ \\t]*\\)\\((extend \\)\\([^)]+\\)\\()\\)"
+"\\(^[ \\t]*(extend \\)\\([^)]+\\)\\()\\)"
   "Regexp used to identify PicoLisp extend definitions."
   :group 'picodoc
   :type 'regexp)
 
 (defcustom picodoc-method-regexp
-  "\\(^[ \\t]*(dm \\)\\([^ ]+\\( (\\)\\)\\([^)]+\\)\\()\\)"
+  "\\(^[ \\t]*(dm \\)\\([^ ]+\\)\\( (\\)\\([^)]+\\)\\()\\)"
   "Regexp used to identify PicoLisp method definitions."
   :group 'picodoc
   :type 'regexp)
@@ -271,8 +271,8 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                   (cond
                    ;; function definitions
                    ((looking-at picodoc-function-regexp)
-                    (let ((match (match-string 0))
-                          (function-name (match-string 2)))
+                    (let ((signature (match-string-no-properties 0))
+                          (function-name (match-string-no-properties 2)))
                       (with-current-buffer out
                         (goto-char
                          (org-find-exact-headline-in-buffer
@@ -285,13 +285,13 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                         (newline 2)
                         (insert picodoc-org-beg-src-picolisp)
                         (newline)
-                        (insert (concat match " ... )"))
+                        (insert (concat signature " ... )"))
                         (newline)
                         (insert picodoc-org-end-src)
                         (newline))))
                    ;; class definitions
                    ((looking-at picodoc-class-regexp)
-                    (let* ((classes (match-string 2))
+                    (let* ((classes (match-string-no-properties 2))
                            (class-list
                             (split-string-and-unquote
                              classes " "))
@@ -308,26 +308,69 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                         (re-search-forward
                          org-babel-src-block-regexp)
                         (forward-line -1)
-                        (and parent-classes
-                             (mapc
-                              (lambda (parent)
-                                (insert
-                                 (format "%s <|-- %s\n"
-                                         (cadr (split-string parent "+"))
-                                         (cadr (split-string new-class "+")))))
-                              parent-classes)))))
-                   ;; class extensions
-                   ;; ((looking-at picodoc-extend-regexp) ) ; difficult
+                        (if parent-classes
+                            (mapc
+                             (lambda (parent)
+                               (insert
+                                (format "%s <|-- %s\n"
+                                        (cadr (split-string parent "+"))
+                                        (cadr (split-string new-class "+")))))
+                             parent-classes)
+                          (insert
+                           (format "class %s\n"
+                                   (cadr (split-string new-class "+"))))))))
+                   ;; ;; class extensions
+                   ((looking-at picodoc-extend-regexp)
+                    (let ((class (match-string-no-properties 2)))
+                      (with-current-buffer out
+                        (org-babel-goto-named-src-block
+                         (concat
+                          (file-name-sans-extension in-nondir)
+                          picodoc-class-diagram-suffix))
+                        (re-search-forward
+                         org-babel-src-block-regexp)
+                        (forward-line -1)
+                        (insert
+                         (format "class %s <<extends>>\n"
+                                 (cadr (split-string class "+")))))))
+                   ;; ;; relation definitions
+                   ;; ((looking-at picodoc-relation-regexp)
+                   ;;  (let (())))
 
-                   ;; relation definitions
-                   ((looking-at picodoc-relation-regexp)
-                    (let (())))
                    ;; method definitions
                    ((looking-at picodoc-method-regexp)
-                    (let (())))
-                   )
-                  (forward-char))
-                ))))))))
+                    (let ((signature (match-string-no-properties 0))
+                          (method-name (match-string-no-properties 2))
+                          (class
+                           (save-excursion
+                             (re-search-backward
+                              (concat
+                               "\\("
+                               picodoc-class-regexp
+                               "\\|"
+                               picodoc-extend-regexp
+                               "\\)"))
+                             (or
+                              (match-string-no-properties 2)
+                              (match-string-no-properties 7)))))
+                      (with-current-buffer out
+                        (org-babel-goto-named-src-block
+                         (concat
+                          (file-name-sans-extension in-nondir)
+                          picodoc-class-diagram-suffix))
+                        (re-search-forward
+                         org-babel-src-block-regexp)
+                        (forward-line -1)
+                        (insert
+                         (format "%s : %s\n"
+                                 (cadr (split-string-and-unquote
+                                        class "+"))
+                                 (concat
+                                  (caar (split-string-and-unquote
+                                         method-name ">"))
+                                  "()")
+                                 ))))))
+                  (forward-char))))))))))
 
 ;; ** Tests
 ;; *** Parse and Convert
