@@ -275,6 +275,13 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                             (car class-list))
                            (new-class-name
                             (cadr (split-string new-class "+")))
+                           (new-class-name-enhanced
+                            (if (numberp
+                                 (compare-strings
+                                  (downcase new-class-name) 0 1
+                                  new-class-name 0 1))
+                                (concat "class " new-class-name)
+                              (concat "abstract class " new-class-name)))
                            (parent-classes
                             (and (> (length class-list) 1)
                                  (cdr class-list))))
@@ -290,26 +297,39 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                         (if parent-classes
                             (mapc
                              (lambda (parent)
-                               (insert
-                                (format "%s <|-- %s\n"
-                                        (cadr (split-string parent "+"))
-                                        new-class-name)))
+                               (let ((parent-name
+                                      (cadr (split-string parent "+"))))
+                                 (insert
+                                  (format "%s <|-- %s\n"
+                                          ;; parent class
+                                          (if (numberp
+                                               (compare-strings
+                                                (downcase parent-name) 0 1
+                                                parent-name 0 1))
+                                              ;; concrete
+                                              (concat "class " parent-name)
+                                            ;; abstract
+                                            (concat "abstract class " parent-name))
+                                          ;; new class
+                                          new-class-name-enhanced))))
                              parent-classes)
                           ;; no inheritance
                           (insert
-                           (if (numberp
-                                (compare-strings
-                                 (downcase new-class-name) 0 1
-                                 new-class-name 0 1))
-                               ;; concrete class
-                               (format "class %s\n"
-                                       new-class-name)
-                             ;; abstract class
-                             (format "abstract class %s\n"
-                                     new-class-name)))))))
+                           (format "%s\n"
+                                   ;; new class
+                                   new-class-name-enhanced))))))
                    ;; class extension
                    ((looking-at picodoc-extend-regexp)
-                    (let ((class (match-string-no-properties 2)))
+                    (let* ((class (match-string-no-properties 2))
+                           (class-name
+                            (cadr (split-string class "+")))
+                           (class-name-enhanced
+                            (if (numberp
+                                 (compare-strings
+                                  (downcase class-name) 0 1
+                                  class-name 0 1))
+                                (concat "class " class-name)
+                              (concat "abstract class " class-name))))
                       (with-current-buffer out
                         (org-babel-goto-named-src-block
                          (concat
@@ -319,32 +339,38 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                          org-babel-src-block-regexp)
                         (forward-line -1)
                         (insert
-                         (format "class %s <<extends>>\n"
-                                 (cadr (split-string class "+")))))))
-                   ;; relation definition
-                   ((looking-at picodoc-relation-regexp)
-                    (let (())))
+                         (format "%s <<extends>>\n"
+                                 class-name-enhanced)))))
+                   ;; ;; relation definition
+                   ;; ((looking-at picodoc-relation-regexp)
+                   ;;  (let (())))
                    ;; method definition
                    ((looking-at picodoc-method-regexp)
-                    (let ((method-name (match-string-no-properties 2))
-                          (method-args (match-string-no-properties 4))
-                          ;;(signature (match-string-no-properties 0))
-                          (class
-                           (save-excursion
-                             (re-search-backward
-                              (concat
-                               "\\("
-                               picodoc-class-regexp
-                               "\\|"
-                               picodoc-extend-regexp
-                               "\\)"))
-                             (or
-                              (and
-                               (match-string-no-properties 3)
-                               (car
-                                (split-string
-                                 (match-string-no-properties 3) " ")))
-                              (match-string-no-properties 6)))))
+                    (let* (;;(signature (match-string-no-properties 0))
+                           (method (match-string-no-properties 2))
+                           (method-args (match-string-no-properties 4))
+                           (method-name
+                            (car (split-string
+                                  method ">")))
+                           (class
+                            (save-excursion
+                              (re-search-backward
+                               (concat
+                                "\\("
+                                picodoc-class-regexp
+                                "\\|"
+                                picodoc-extend-regexp
+                                "\\)"))
+                              (or
+                               (and
+                                (match-string-no-properties 3)
+                                (car
+                                 (split-string
+                                  (match-string-no-properties 3) " ")))
+                               (match-string-no-properties 6))))
+                           (class-name
+                            (cadr (split-string
+                                   class "+"))))
                       (with-current-buffer out
                         (org-babel-goto-named-src-block
                          (concat
@@ -355,13 +381,10 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                         (forward-line -1)
                         (insert
                          (format "%s : %s\n"
-                                 (cadr (split-string
-                                        class "+"))
+                                 class-name
                                  (concat
-                                  (car (split-string
-                                        method-name ">"))
-                                  "(" method-args ")")
-                                 ))))))
+                                  method-name
+                                  "(" method-args ")")))))))
                   (forward-char))))))))))
 
 ;; ** Tests
