@@ -44,30 +44,6 @@
    "/Documentation for PicoLisp Source File %S/\n\n")
   "String to be used with `format' for insertion as doc-file header")
 
-;; (defconst picodoc-plantuml-line "--"
-;;   "PlantUML symbol for line.")
-
-;; (defconst picodoc-plantuml-dotted-line ".."
-;;   "PlantUML symbol for dotted line.")
-
-;; (defconst picodoc-plantuml-left-arrow "<"
-;;   "PlantUML symbol for left arrow.")
-
-;; (defconst picodoc-plantuml-right-arrow ">"
-;;   "PlantUML symbol for right arrow.")
-
-;; (defconst picodoc-plantuml-left-extension "<|"
-;;   "PlantUML symbol for left extension.")
-
-;; (defconst picodoc-plantuml-right-extension "|>"
-;;   "PlantUML symbol for right extension.")
-
-;; (defconst picodoc-plantuml-composition "*"
-;;   "PlantUML symbol for composition.")
-
-;; (defconst picodoc-plantuml-agregation "o"
-;;   "PlantUML symbol for agregation.")
-
 (defconst picodoc-org-scrname "#+name: "
   "Org syntax for naming a source block.")
 
@@ -352,7 +328,7 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                                "\\)"))
                              (or
                               (match-string-no-properties 2)
-                              (match-string-no-properties 7)))))
+                              (match-string-no-properties 6)))))
                       (with-current-buffer out
                         (org-babel-goto-named-src-block
                          (concat
@@ -363,10 +339,10 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                         (forward-line -1)
                         (insert
                          (format "%s : %s\n"
-                                 (cadr (split-string-and-unquote
+                                 (cadr (split-string
                                         class "+"))
                                  (concat
-                                  (caar (split-string-and-unquote
+                                  (car (split-string
                                          method-name ">"))
                                   "()")
                                  ))))))
