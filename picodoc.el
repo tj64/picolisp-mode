@@ -215,7 +215,7 @@ Parse the current buffer or PicoLisp source file IN-FILE and
           (insert (concat "*** " picodoc-class-diagram-headline))
           (beginning-of-line)
           (org-insert-property-drawer)
-          (org-entry-put (point) "exports" "both")
+          (org-entry-put (point) "exports" "results")
           (org-entry-put (point) "results" "replace")
           (end-of-buffer)
           (newline)
@@ -245,7 +245,7 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                 (goto-char (point-min))
                 (while (not (eobp))
                   (cond
-                   ;; function definitions
+                   ;; function definition
                    ((looking-at picodoc-function-regexp)
                     (let ((signature (match-string-no-properties 0))
                           (function-name (match-string-no-properties 2)))
@@ -265,7 +265,7 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                         (newline)
                         (insert picodoc-org-end-src)
                         (newline))))
-                   ;; class definitions
+                   ;; class definition
                    ((looking-at picodoc-class-regexp)
                     (let* ((classes (match-string-no-properties 2))
                            (class-list
@@ -273,6 +273,8 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                              classes " "))
                            (new-class
                             (car class-list))
+                           (new-class-name
+                            (cadr (split-string new-class "+")))
                            (parent-classes
                             (and (> (length class-list) 1)
                                  (cdr class-list))))
@@ -284,18 +286,28 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                         (re-search-forward
                          org-babel-src-block-regexp)
                         (forward-line -1)
+                        ;; inheritance
                         (if parent-classes
                             (mapc
                              (lambda (parent)
                                (insert
                                 (format "%s <|-- %s\n"
                                         (cadr (split-string parent "+"))
-                                        (cadr (split-string new-class "+")))))
+                                        new-class-name)))
                              parent-classes)
+                          ;; no inheritance
                           (insert
-                           (format "class %s\n"
-                                   (cadr (split-string new-class "+"))))))))
-                   ;; ;; class extensions
+                           (if (numberp
+                                (compare-strings
+                                 (downcase new-class-name) 0 1
+                                 new-class-name 0 1))
+                               ;; concrete class
+                               (format "class %s\n"
+                                       new-class-name)
+                             ;; abstract class
+                             (format "abstract class %s\n"
+                                     new-class-name)))))))
+                   ;; class extension
                    ((looking-at picodoc-extend-regexp)
                     (let ((class (match-string-no-properties 2)))
                       (with-current-buffer out
@@ -309,11 +321,10 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                         (insert
                          (format "class %s <<extends>>\n"
                                  (cadr (split-string class "+")))))))
-                   ;; ;; relation definitions
-                   ;; ((looking-at picodoc-relation-regexp)
-                   ;;  (let (())))
-
-                   ;; method definitions
+                   ;; relation definition
+                   ((looking-at picodoc-relation-regexp)
+                    (let (())))
+                   ;; method definition
                    ((looking-at picodoc-method-regexp)
                     (let ((method-name (match-string-no-properties 2))
                           (method-args (match-string-no-properties 4))
