@@ -95,7 +95,7 @@
   :type 'regexp)
 
 (defcustom picodoc-method-regexp
-  "\\(^[ \\t]*(dm \\)\\([^ ]+\\)\\( (\\)\\([^)]+\\)\\()\\)"
+  "\\(^[ \\t]*(dm \\)\\([^ ]+\\)\\( (\\)\\([^)]*\\)\\()\\)"
   "Regexp used to identify PicoLisp method definitions."
   :group 'picodoc
   :type 'regexp)
@@ -135,7 +135,7 @@
 
 Parse the current buffer or PicoLisp source file IN-FILE and
   write its documentation to <buffer-name>.org (or Org-mode file
-  OUT-FILE). Overrides existing output files without warning."
+  OUT-FILE)."
   (interactive)
   (let* (
          ;; input file
@@ -315,8 +315,9 @@ Parse the current buffer or PicoLisp source file IN-FILE and
 
                    ;; method definitions
                    ((looking-at picodoc-method-regexp)
-                    (let ((signature (match-string-no-properties 0))
-                          (method-name (match-string-no-properties 2))
+                    (let ((method-name (match-string-no-properties 2))
+                          (method-args (match-string-no-properties 4))
+                          ;;(signature (match-string-no-properties 0))
                           (class
                            (save-excursion
                              (re-search-backward
@@ -327,7 +328,11 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                                picodoc-extend-regexp
                                "\\)"))
                              (or
-                              (match-string-no-properties 2)
+                              (and
+                               (match-string-no-properties 3)
+                               (car
+                                (split-string
+                                 (match-string-no-properties 3) " ")))
                               (match-string-no-properties 6)))))
                       (with-current-buffer out
                         (org-babel-goto-named-src-block
@@ -343,8 +348,8 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                                         class "+"))
                                  (concat
                                   (car (split-string
-                                         method-name ">"))
-                                  "()")
+                                        method-name ">"))
+                                  "(" method-args ")")
                                  ))))))
                   (forward-char))))))))))
 
