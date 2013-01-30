@@ -101,7 +101,7 @@
   :type 'regexp)
 
 (defcustom picodoc-relation-regexp
-"\\(^[ \\t]*(rel \\)\\([^)]+\\)\\( (\\)\\([^)]+\\)\\() ?\\)\\([^()]*\\)\\((?\\)\\([^)]*\\)\\())?\\)"
+"\\(^[ \\t]*(rel \\)\\([^ )]+\\)\\( (\\)\\([^)]+\\)\\() ?\\)\\([^()]*\\)\\((?\\)\\([^)]*\\)\\())?\\)"
   "Regexp used to identify PicoLisp relation definitions."
   :group 'picodoc
   :type 'regexp)
@@ -341,9 +341,72 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                         (insert
                          (format "%s <<extends>>\n"
                                  class-name-enhanced)))))
-                   ;; ;; relation definition
-                   ;; ((looking-at picodoc-relation-regexp)
-                   ;;  (let (())))
+                   ;; relation definition
+                   ((looking-at picodoc-relation-regexp)
+                    (let* ((match (match-string-no-properties 0))
+                           (attr-name (match-string-no-properties 2))
+                           (rel-classes (match-string-no-properties 4))
+                           (args (match-string-no-properties 6))
+                           (args-classes (match-string-no-properties 8))
+                           (rel-class-list
+                            (split-string-and-unquote
+                             (mapconcat 'identity
+                              (split-string
+                               rel-classes " ") "") "+"))
+                           (args-class-list
+                            (split-string-and-unquote
+                             (mapconcat 'identity
+                              (split-string
+                               args-classes " ") "") "+"))
+                           (class
+                            (save-excursion
+                              (re-search-backward
+                               (concat
+                                "\\("
+                                picodoc-class-regexp
+                                "\\|"
+                                picodoc-extend-regexp
+                                "\\)"))
+                              (or
+                               (and
+                                (match-string-no-properties 3)
+                                (car
+                                 (split-string
+                                  (match-string-no-properties 3) " ")))
+                               (match-string-no-properties 6))))
+                           (class-name
+                            (cadr (split-string
+                                   class "+"))))
+                      ;; (message
+                      ;;  "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n"
+                      ;;  class
+                      ;;  class-name
+                      ;;  match
+                      ;;  attr-name
+                      ;;  rel-classes
+                      ;;  rel-class-list
+                      ;;  args
+                      ;;  args-classes
+                      ;;  args-class-list)
+                   (with-current-buffer out
+                        (org-babel-goto-named-src-block
+                         (concat
+                          (file-name-sans-extension in-nondir)
+                          picodoc-class-diagram-suffix))
+                        (re-search-forward
+                         org-babel-src-block-regexp)
+                        (forward-line -1)
+                        (insert
+                         (cond
+                          ((member "Link" rel-class-list)
+                           (format "%s o-- %s\n"
+                                 class-name
+                                 (car args-class-list)))
+                          (t
+                           (format "%s : %s\n"
+                                 class-name
+                                 (concat "+" attr-name))))))))
+
                    ;; method definition
                    ((looking-at picodoc-method-regexp)
                     (let* (;;(signature (match-string-no-properties 0))
@@ -352,6 +415,8 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                            (method-name
                             (car (split-string
                                   method ">")))
+                           (method-name-with-visibility ; TODO transient symbols
+                            (concat "+" method-name))
                            (class
                             (save-excursion
                               (re-search-backward
@@ -383,7 +448,7 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                          (format "%s : %s\n"
                                  class-name
                                  (concat
-                                  method-name
+                                  method-name-with-visibility
                                   "(" method-args ")")))))))
                   (forward-char))))))))))
 
