@@ -126,6 +126,13 @@
   :group 'picodoc
   :type 'string)
 
+(defcustom picodoc-entity-use-stereotype-p t
+  "If non-nil, the inheritance relation to parent +Entity is shown as
+stereotype in the subclass diagram instead as arrow."
+  :group 'picodoc
+  :type 'boolean)
+
+
 ;; * Functions
 ;; ** Source Code
 ;; *** Parse and Convert
@@ -282,9 +289,25 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                                   new-class-name 0 1))
                                 (concat "class " new-class-name)
                               (concat "abstract class " new-class-name)))
-                           (parent-classes
+                           (parent-classes-complete
                             (and (> (length class-list) 1)
-                                 (cdr class-list))))
+                                 (cdr class-list)))
+                           (new-class-name-enhanced-entity-stereotype
+                            (and
+                             parent-classes-complete
+                             (member "+Entity" parent-classes-complete)
+                             picodoc-entity-use-stereotype-p
+                             (concat
+                              new-class-name-enhanced
+                              " <<Entity>>")))
+                           (parent-classes-no-entity
+                            (and
+                             new-class-name-enhanced-entity-stereotype
+                             (remove "+Entity" parent-classes-complete)))
+                           (parent-classes
+                            (if new-class-name-enhanced-entity-stereotype
+                                parent-classes-no-entity
+                              parent-classes-complete)))
                       (with-current-buffer out
                         (org-babel-goto-named-src-block
                          (concat
@@ -311,13 +334,17 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                                             ;; abstract
                                             (concat "abstract class " parent-name))
                                           ;; new class
-                                          new-class-name-enhanced))))
+                                          (or
+                                           new-class-name-enhanced-entity-stereotype
+                                           new-class-name-enhanced)))))
                              parent-classes)
                           ;; no inheritance
                           (insert
                            (format "%s\n"
                                    ;; new class
-                                   new-class-name-enhanced))))))
+                                   (or
+                                    new-class-name-enhanced-entity-stereotype
+                                    new-class-name-enhanced)))))))
                    ;; class extension
                    ((looking-at picodoc-extend-regexp)
                     (let* ((class (match-string-no-properties 2))
@@ -351,13 +378,13 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                            (rel-class-list
                             (split-string-and-unquote
                              (mapconcat 'identity
-                              (split-string
-                               rel-classes " ") "") "+"))
+                                        (split-string
+                                         rel-classes " ") "") "+"))
                            (args-class-list
                             (split-string-and-unquote
                              (mapconcat 'identity
-                              (split-string
-                               args-classes " ") "") "+"))
+                                        (split-string
+                                         args-classes " ") "") "+"))
                            (class
                             (save-excursion
                               (re-search-backward
@@ -388,7 +415,7 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                       ;;  args
                       ;;  args-classes
                       ;;  args-class-list)
-                   (with-current-buffer out
+                      (with-current-buffer out
                         (org-babel-goto-named-src-block
                          (concat
                           (file-name-sans-extension in-nondir)
@@ -400,12 +427,12 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                          (cond
                           ((member "Link" rel-class-list)
                            (format "%s o-- %s\n"
-                                 class-name
-                                 (car args-class-list)))
+                                   class-name
+                                   (car args-class-list)))
                           (t
                            (format "%s : %s\n"
-                                 class-name
-                                 (concat "+" attr-name))))))))
+                                   class-name
+                                   (concat "+" attr-name))))))))
 
                    ;; method definition
                    ((looking-at picodoc-method-regexp)
