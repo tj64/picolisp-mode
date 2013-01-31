@@ -300,6 +300,10 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                              (concat
                               new-class-name-enhanced
                               " <<Entity>>")))
+                           (class-name
+                            (or
+                             new-class-name-enhanced-entity-stereotype
+                             new-class-name-enhanced))
                            (parent-classes-no-entity
                             (and
                              new-class-name-enhanced-entity-stereotype
@@ -334,17 +338,13 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                                             ;; abstract
                                             (concat "abstract class " parent-name))
                                           ;; new class
-                                          (or
-                                           new-class-name-enhanced-entity-stereotype
-                                           new-class-name-enhanced)))))
+                                          class-name))))
                              parent-classes)
                           ;; no inheritance
                           (insert
                            (format "%s\n"
                                    ;; new class
-                                   (or
-                                    new-class-name-enhanced-entity-stereotype
-                                    new-class-name-enhanced)))))))
+                                   class-name))))))
                    ;; class extension
                    ((looking-at picodoc-extend-regexp)
                     (let* ((class (match-string-no-properties 2))
