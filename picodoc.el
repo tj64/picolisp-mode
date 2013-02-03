@@ -2,7 +2,7 @@
 
 ;; ** Title & Copyright
 
-;; picodoc.el - extract a documentation file from a PicoLisp source file
+;; picodoc.el - extract a documentation file from a (flat) PicoLisp source file
 ;; Version: 0.1
 ;; Copyright (c) 2013 Thorsten Jolitz
 ;; This file is NOT part of GNU emacs.
@@ -17,6 +17,17 @@
 
 ;; For comments, bug reports, questions, etc, you can contact the author via
 ;; email: (format "tjolitz%sgmail%s" "@" ".com")
+
+;; ** Comment
+
+;; You can use the following (PicoLisp) code to convert a PicoLisp source file
+;; (.l) into a 'flat' file (.flat) which is much easier to parse with regexp:
+
+;; #+begin_src picolisp 
+;;    (out "myfile.flat"
+;;       (in "myfile.l"
+;;          (while (read) (println @)) ) )
+;; #+end_src
 
 ;; ** License:
 
@@ -59,6 +70,10 @@
 
 ;; ** Vars
 ;; *** Variables
+
+(defvar picodoc-joint-rel-temp-store nil
+  "Temporary store for information about first side of joint relation.")
+
 ;; *** Hooks
 
 (defvar picodoc-hook nil
@@ -147,12 +162,12 @@ Parse the current buffer or PicoLisp source file IN-FILE and
   (let* (
          ;; input file
          (in (or (and in-file
-                      (string-equal (file-name-extension in-file) "l")
+                      (string-equal (file-name-extension in-file) "flat")
                       (get-buffer-create in-file))
                  (and buffer-file-name
                       (string-equal
                        (file-name-extension
-                        (buffer-file-name)) "l")
+                        (buffer-file-name)) "flat")
                       (current-buffer))))
          (in-nondir (and in
                          (file-name-nondirectory
@@ -166,8 +181,8 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                                     (buffer-file-name in)) ".org") 'NOWARN)))))
     (if (not in)
         (message (concat
-                  "No valid PicoLisp source file (extension '.l') file"
-                  "as input"))
+                  "No valid (flat) PicoLisp source file "
+                  "with extension '.flat' as input"))
       ;; (message "in: %s %s %s, out: %s %s %s"
       ;;          in (bufferp in) (buffer-file-name in)
       ;;          out (bufferp out) (buffer-file-name out)
@@ -281,7 +296,9 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                            (new-class
                             (car class-list))
                            (new-class-name
-                            (cadr (split-string new-class "+")))
+                            (replace-regexp-in-string
+                             "[^[:word:]]" "_"
+                             (cadr (split-string new-class "+"))))
                            (new-class-name-enhanced
                             (if (numberp
                                  (compare-strings
@@ -325,7 +342,11 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                             (mapc
                              (lambda (parent)
                                (let ((parent-name
-                                      (cadr (split-string parent "+"))))
+                                      (replace-regexp-in-string
+                                       "[^[:word:]]" "_"
+                                       (cadr
+                                        (split-string
+                                         parent "+")))))
                                  (insert
                                   (format "%s <|-- %s\n"
                                           ;; parent class
@@ -336,7 +357,8 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                                               ;; concrete
                                               (concat "class " parent-name)
                                             ;; abstract
-                                            (concat "abstract class " parent-name))
+                                            (concat
+                                             "abstract class " parent-name))
                                           ;; new class
                                           class-name))))
                              parent-classes)
@@ -347,9 +369,12 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                                    class-name))))))
                    ;; class extension
                    ((looking-at picodoc-extend-regexp)
-                    (let* ((class (match-string-no-properties 2))
+                    (let* ((class
+                            (match-string-no-properties 2))
                            (class-name
-                            (cadr (split-string class "+")))
+                            (replace-regexp-in-string
+                             "[^[:word:]]" "_"
+                             (cadr (split-string class "+"))))
                            (class-name-enhanced
                             (if (numberp
                                  (compare-strings
@@ -380,6 +405,12 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                              (mapconcat 'identity
                                         (split-string
                                          rel-classes " ") "") "+"))
+                           (rel-class-string
+                            (concat
+                             "rel["
+                             (mapconcat
+                              'identity rel-class-list " ")
+                             "] "))
                            (args-class-list
                             (split-string-and-unquote
                              (mapconcat 'identity
@@ -402,8 +433,10 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                                   (match-string-no-properties 3) " ")))
                                (match-string-no-properties 6))))
                            (class-name
-                            (cadr (split-string
-                                   class "+"))))
+                            (replace-regexp-in-string
+                             "[^[:word:]]" "_"
+                             (cadr (split-string
+                                    class "+")))))
                       ;; (message
                       ;;  "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n"
                       ;;  class
@@ -426,13 +459,56 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                         (insert
                          (cond
                           ((member "Link" rel-class-list)
-                           (format "%s o-- %s\n"
-                                   class-name
-                                   (car args-class-list)))
+                           (concat
+                            (format "%s %s o-- %s\n"
+                                    class-name
+                                    (concat
+                                     (if (member "List" rel-class-list)
+                                         "\"              * "
+                                       "\"             ")
+                                     attr-name
+                                     "\"")
+                                    (replace-regexp-in-string
+                                     "[^[:word:]]" "_"
+                                     (car args-class-list)))
+                            (format "%s : %s\n"
+                                    class-name
+                                    (concat
+                                     "+"
+                                     rel-class-string
+                                     attr-name))))
+                          ((member "Joint" rel-class-list)
+                           (concat
+                            (format "%s %s o-- %s\n"
+                                    class-name
+                                    (concat
+                                     (if (member "List" args-class-list)
+                                         "\"              * "
+                                       "\"             1 ")
+                                     attr-name
+                                     "\"")
+                                    (concat
+                                     (if (member "List" rel-class-list)
+                                         "\"              * "
+                                       "\"             1 ")
+                                     args
+                                     "\" "
+                                     (replace-regexp-in-string
+                                      "[^[:word:]]" "_"
+                                      (car args-class-list))))
+                            (format "%s : %s\n"
+                                    class-name
+                                    (concat
+                                     "+"
+                                     rel-class-string
+                                     attr-name))))
                           (t
                            (format "%s : %s\n"
                                    class-name
-                                   (concat "+" attr-name))))))))
+                                   (concat
+                                    "+"
+                                    rel-class-string
+                                    attr-name))))))))
 
                    ;; method definition
                    ((looking-at picodoc-method-regexp)
@@ -461,8 +537,10 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                                   (match-string-no-properties 3) " ")))
                                (match-string-no-properties 6))))
                            (class-name
-                            (cadr (split-string
-                                   class "+"))))
+                            (replace-regexp-in-string
+                             "[^[:word:]]" "_"
+                             (cadr (split-string
+                                    class "+")))))
                       (with-current-buffer out
                         (org-babel-goto-named-src-block
                          (concat
