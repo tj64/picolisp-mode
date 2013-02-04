@@ -44,15 +44,17 @@
 ;; * Variables
 ;; ** Consts
 
-(defconst picodoc-version "0.1"
+(defconst picodoc-version "0.8"
   "PicoDoc version number.")
 
 (defconst picodoc-header-string
   (concat
-   "#+TITLE:      %S\n"
+   "#+TITLE:      %s\n"
    "#+LANGUAGE:   en\n"
+   "#+TEXT        Documentation for PicoLisp Source File '%s'\n"
+   "#+OPTIONS:    H:3 num:nil toc:t\n"
    "#+DATE:       %s\n\n"
-   "/Documentation for PicoLisp Source File %S/\n\n")
+   )
   "String to be used with `format' for insertion as doc-file header")
 
 (defconst picodoc-org-scrname "#+name: "
@@ -73,6 +75,18 @@
 
 (defvar picodoc-joint-rel-temp-store nil
   "Temporary store for information about first side of joint relation.")
+
+(setq picodoc-joint-rel-temp-store nil) ;FIXME makes sense here?
+
+(defvar picodoc-unique-class-name-set nil
+  "Set for storing all class names in a PicoLisp source file.
+
+Helps avoiding accidental name collisions after replacing characters with
+non-word syntax with the underscore '_'")
+
+(setq picodoc-unique-class-name-set nil) ;FIXME makes sense here?
+
+
 
 ;; *** Hooks
 
@@ -126,6 +140,19 @@
   :group 'picodoc
   :type 'string)
 
+(defcustom picodoc-public-functions-headline "Public Functions"
+  "String used as headline for subtree with public function
+definitions."
+  :group 'picodoc
+  :type 'string)
+
+(defcustom picodoc-private-functions-headline "Private Functions"
+  "String used as headline for subtree with private function
+definitions."
+  :group 'picodoc
+  :type 'string)
+
+
 (defcustom picodoc-classes-headline "Classes and Methods"
   "String used as headline for subtree with class definitions."
   :group 'picodoc
@@ -169,9 +196,11 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                        (file-name-extension
                         (buffer-file-name)) "flat")
                       (current-buffer))))
-         (in-nondir (and in
+         (in-nondir-flat (and in
                          (file-name-nondirectory
                           (buffer-file-name in))))
+         (in-nondir-source
+          (concat (file-name-sans-extension in-nondir-flat) ".l"))
          ;; output-file
          (out (or (and out-file
                        (string-equal (file-name-extension out-file) "org")
@@ -214,10 +243,10 @@ Parse the current buffer or PicoLisp source file IN-FILE and
           ;; header
           (insert
            (format picodoc-header-string
-                   in-nondir
+                   in-nondir-source
+                   in-nondir-source
                    (format-time-string
-                    "<%Y-%m-%d %a %H:%M>")
-                   in-nondir))
+                    "<%Y-%m-%d %a %H:%M>")))
           (end-of-buffer)
           ;; top-level entry
           (insert "* Definitions")
@@ -229,6 +258,12 @@ Parse the current buffer or PicoLisp source file IN-FILE and
           (org-entry-put (point) "exports" "code")
           (org-entry-put (point) "results" "silent")
           (end-of-buffer)
+          (newline)
+          ;; third-level entry 'public functions'
+          (insert (concat "*** " picodoc-public-functions-headline))
+          (newline)
+          ;; third-level entry 'private functions'
+          (insert (concat "*** " picodoc-private-functions-headline))
           (newline)
           ;; second-level entry 'classes and methods'
           (insert (concat "** " picodoc-classes-headline))
@@ -245,17 +280,17 @@ Parse the current buffer or PicoLisp source file IN-FILE and
           (insert
            (concat
             picodoc-org-scrname
-            (file-name-sans-extension in-nondir)
+            (file-name-sans-extension in-nondir-flat)
             picodoc-class-diagram-suffix))
           (newline)
           (insert
            (format
             picodoc-org-beg-src-plantuml
             (concat
-             (file-name-sans-extension in-nondir)
+             (file-name-sans-extension in-nondir-flat)
              picodoc-class-diagram-suffix)))
           (newline)
-          (insert (format "title <b>%s</b>%sClass Diagram" in-nondir "\\n"))
+          (insert (format "title <b>%s</b>%sClass Diagram" in-nondir-flat "\\n"))
           (newline 2)
           (insert picodoc-org-end-src)
 
@@ -332,7 +367,7 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                       (with-current-buffer out
                         (org-babel-goto-named-src-block
                          (concat
-                          (file-name-sans-extension in-nondir)
+                          (file-name-sans-extension in-nondir-flat)
                           picodoc-class-diagram-suffix))
                         (re-search-forward
                          org-babel-src-block-regexp)
@@ -385,7 +420,7 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                       (with-current-buffer out
                         (org-babel-goto-named-src-block
                          (concat
-                          (file-name-sans-extension in-nondir)
+                          (file-name-sans-extension in-nondir-flat)
                           picodoc-class-diagram-suffix))
                         (re-search-forward
                          org-babel-src-block-regexp)
@@ -451,7 +486,7 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                       (with-current-buffer out
                         (org-babel-goto-named-src-block
                          (concat
-                          (file-name-sans-extension in-nondir)
+                          (file-name-sans-extension in-nondir-flat)
                           picodoc-class-diagram-suffix))
                         (re-search-forward
                          org-babel-src-block-regexp)
@@ -544,7 +579,7 @@ Parse the current buffer or PicoLisp source file IN-FILE and
                       (with-current-buffer out
                         (org-babel-goto-named-src-block
                          (concat
-                          (file-name-sans-extension in-nondir)
+                          (file-name-sans-extension in-nondir-flat)
                           picodoc-class-diagram-suffix))
                         (re-search-forward
                          org-babel-src-block-regexp)
