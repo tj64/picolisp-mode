@@ -605,7 +605,6 @@ Parse the current buffer or PicoLisp source file IN-FILE and
 ;; eval: (outline-minor-mode)
 ;; eval: (rainbow-mode)
 ;; ispell-local-dictionary: "en_US"
-;; outline-regexp: ";; [*]+ "
 ;; End:
 
 ;;; picodoc.el ends here
