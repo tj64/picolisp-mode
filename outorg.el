@@ -123,6 +123,14 @@
 
 ;; ** Non-interactive Functions
 
+;; *** Get buffer major mode
+
+(defun outorg-get-buffer-mode (buffer-or-string)
+  "Return major mode of BUFFER-OR-STRING."
+  (with-current-buffer buffer-or-string
+     major-mode))
+
+
 ;; *** Calculate the outline-regexp
 
 (defun outorg-calc-outline-regexp ()
@@ -213,7 +221,7 @@
   "Add this function to the major-mode hook of your choice"
   (let ((out-regexp (outorg-calc-outline-regexp)))
     (outorg-set-local-outline-regexp-and-level
-     out-regexp 'outorg-calc-outline-level)    
+     out-regexp 'outorg-calc-outline-level)
     (outorg-fontify-headlines out-regexp)
     (outline-minor-mode 1)))
 
@@ -221,7 +229,7 @@
 
 (defun outorg-copy-and-convert ()
   "Copy code buffer content to tmp-buffer and convert it to Org syntax"
-  (let ((code-buffer (current-buffer))
+  (let* ((old-point (point))
         (edit-buffer
          (get-buffer-create
           (generate-new-buffer-name "outorg-edit"))))
@@ -232,8 +240,11 @@
        (point-min)
        (point-max))
       (switch-to-buffer edit-buffer)
-      ;; (eval FIXME
-      (outorg-convert-to-org))))
+      (funcall (outorg-get-buffer-mode outorg-code-buffer))
+      (goto-char old-point)
+     (save-excursion
+      (outorg-convert-to-org))
+     (org-mode))))
 
 (defun outorg-convert-and-copy ()
   "Convert edit-buffer content back to code syntax and copy it to code buffer"
