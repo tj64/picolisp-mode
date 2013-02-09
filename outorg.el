@@ -1,41 +1,3 @@
-;; * Code
-
-;; ** Requires
-
-(require 'outline)
-(require 'newcomment)
-;; (require 'ob-core)
-
-;; ** Variables
-
-;; *** Consts
-
-(defconst outorg-version "0.9"
-  "outorg version number.")
-
-;; *** Vars
-
-(defvar outline-minor-mode-prefix "\C-c"
-  "New outline-minor-mode prefix.")
-
-;; *** Hooks
-
-(defvar outorg-hook nil
-  "Functions to run after `outorg' is loaded.")
-
-;; *** Customs
-
-;; **** Custom Groups
-
-;; (defgroup outorg nil
-;;   "Library for outline navigation and Org-mode editing in Lisp buffers."
-;;   :prefix "outorg-"
-;;   :group 'lisp 'outlines
-;;   :link '(url-link "http://emacswiki.org/emacs/OutlineMinorMode"))
-
-
-;; **** Custom Vars
-
 ;; * outorg.el --- Org-style outline navigation and comment editing
 
 ;; ** Copyright
@@ -115,6 +77,42 @@
 ;; comments found in many programming languages are not recognized and lead to
 ;; undefined behaviour.
 
+;; * Requires
+
+(require 'outline)
+(require 'newcomment)
+;; (require 'ob-core)
+
+;; * Variables
+
+;; ** Consts
+
+(defconst outorg-version "0.9"
+  "outorg version number.")
+
+;; ** Vars
+
+(defvar outline-minor-mode-prefix "\C-c"
+  "New outline-minor-mode prefix.")
+
+;; ** Hooks
+
+(defvar outorg-hook nil
+  "Functions to run after `outorg' is loaded.")
+
+;; ** Customs
+
+;; *** Custom Groups
+
+;; (defgroup outorg nil
+;;   "Library for outline navigation and Org-mode editing in Lisp buffers."
+;;   :prefix "outorg-"
+;;   :group 'lisp 'outlines
+;;   :link '(url-link "http://emacswiki.org/emacs/OutlineMinorMode"))
+
+
+;; *** Custom Vars
+
 ;; * Functions
 
 ;; ** Non-interactive Functions
@@ -126,7 +124,9 @@
   (let* ((comment-start-no-space (replace-regexp-in-string 
                                   "[[:space:]]+" "" comment-start))
          (comment-start-region
-          (if comment-end
+          (if (and
+               comment-end
+               (not (string-equal "" comment-end)))
               comment-start-no-space
             (concat
              comment-start-no-space comment-start-no-space))))
@@ -141,7 +141,6 @@
     (save-match-data
       (let ((len (- (match-end 0) (match-beginning 0))))
         (- len (+ 2 (* 2 (length (format "%s" comment-start)))))))))
-
 
 
 ;; *** Fontify the headlines
@@ -191,29 +190,35 @@
 (defun outorg-set-local-outline-regexp-and-level (regexp &optional fun)
   ;; Set `outline-regexp' locally to REGEXP and `outline-level' to FUN.
   ;; Will not set either of these if one of them already have a local value.
-  (or (assq 'outline-regexp (buffer-local-variables))
-      (assq 'outline-level (buffer-local-variables))
-      (progn
+  ;; (or (assq 'outline-regexp (buffer-local-variables))
+  ;;     (assq 'outline-level (buffer-local-variables))
+      ;; (progn
 	(make-local-variable 'outline-regexp)
 	(setq outline-regexp regexp)
 	(if (null fun)
 	    ()
 	  (make-local-variable 'outline-level)
-	  (setq outline-level fun)))))
+	  (setq outline-level fun)))
 
 
 ;; *** Outorg hook-function
 
 (defun outorg-hook-function ()
   "Add this function to the major-mode hook of your choice"
-  (let ((out-regexp outorg-calc-outline-regexp)
-        (out-level 'outorg-calc-outline-level))
+  (let ((out-regexp (outorg-calc-outline-regexp)))
     (outorg-set-local-outline-regexp-and-level
-     out-regexp out-level)
+     out-regexp 'outorg-calc-outline-level)    
     (outorg-fontify-headlines out-regexp)
     (outline-minor-mode 1)))
 
+;; *** Edit as Org-file
 
+(defun outorg-edit-in-org-mode-buffer ()
+  "Convert and copy to temporary Org buffer")
+  
+
+(defun outorg-copy-file-to-tmp-buffer ()
+  
 ;; ** Commands
 
 ;; Additional outline commands (from `out-xtra').
@@ -325,7 +330,7 @@
 
 ;; * Run hooks and provide
 
-(run-hooks 'outorg-hook))
+(run-hooks 'outorg-hook)
 
 (provide 'outorg)
 
