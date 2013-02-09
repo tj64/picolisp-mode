@@ -81,7 +81,7 @@
 
 (require 'outline)
 (require 'newcomment)
-;; (require 'ob-core)
+(require 'org)
 
 ;; * Variables
 
@@ -94,6 +94,12 @@
 
 (defvar outline-minor-mode-prefix "\C-c"
   "New outline-minor-mode prefix.")
+
+(defvar outorg-code-buffer nil
+  "The original code buffer")
+
+(defvar outorg-edited-content nil
+  "The content of the edit buffer")
 
 ;; ** Hooks
 
@@ -131,7 +137,7 @@
             (concat
              comment-start-no-space comment-start-no-space))))
     ;; the "^" not needed by outline, but by outorg
-    (concat "^" comment-start-region " [*]+ ")))
+    (concat "\\(^" comment-start-region " \\)\\([*]+ \\)")))
 
 ;; *** Calculate the outline-level
 
@@ -140,7 +146,7 @@
   (save-excursion
     (save-match-data
       (let ((len (- (match-end 0) (match-beginning 0))))
-        (- len (+ 2 (* 2 (length (format "%s" comment-start)))))))))
+        (- len (+ 2 (* 2 (length (format "%s" comment-start))))))))) 
 
 
 ;; *** Fontify the headlines
@@ -213,15 +219,113 @@
 
 ;; *** Edit as Org-file
 
-(defun outorg-edit-in-org-mode-buffer ()
-  "Convert and copy to temporary Org buffer")
-  
+(defun outorg-copy-and-convert ()
+  "Copy code buffer content to tmp-buffer and convert it to Org syntax"
+  (let ((code-buffer (current-buffer))
+        (edit-buffer
+         (get-buffer-create
+          (generate-new-buffer-name "outorg-edit"))))
+    (save-restriction
+      (widen)
+      (copy-to-buffer
+       edit-buffer
+       (point-min)
+       (point-max))
+      (switch-to-buffer edit-buffer)
+      ;; (eval FIXME
+      (outorg-convert-to-org))))
 
-(defun outorg-copy-file-to-tmp-buffer ()
-  
+(defun outorg-convert-and-copy ()
+  "Convert edit-buffer content back to code syntax and copy it to code buffer"
+  (let ((edit-buffer (current-buffer)))
+    (outorg-convert-back-to-code)
+      (copy-to-buffer
+       outorg-code-buffer
+       (point-min)
+       (point-max))
+      (switch-to-buffer outorg-code-buffer)
+      (save-buffer)
+      (kill-buffer edit-buffer)))
+
+(defun outorg-convert-to-org ()
+  "Convert file content to Org Syntax"
+  (let ((last-line-comment-p nil))
+    (goto-char (point-min))
+    (while (not (eobp))
+      (cond
+       ;; empty line
+       ((looking-at "^[[:space:]]*$"))
+       ;; comment line after comment line or at
+       ;; beginning of buffer
+       ((and
+         (save-excursion
+           (eq (comment-on-line-p) (point-at-bol)))
+         (or (bobp) last-line-comment-p))
+        (uncomment-region (point-at-bol) (point-at-eol))
+        (setq last-line-comment-p t))
+       ;; comment line after line of code
+       ((and
+         (save-excursion
+           (eq (comment-on-line-p) (point-at-bol)))
+         (not last-line-comment-p))
+        (uncomment-region (point-at-bol) (point-at-eol))
+        (save-excursion
+          (forward-line -1)
+          (unless (looking-at "^[[:space:]]*$")
+              (newline))
+          (insert "#+end_src")
+          (newline))
+        (setq last-line-comment-p t))
+       ;; line of code after comment line
+       ((and
+         (save-excursion
+           (not (eq (comment-on-line-p) (point-at-bol))))
+         last-line-comment-p)
+        (newline 2)
+        (forward-line -1)
+        (insert
+         (let* ((mode-name
+                 (format
+                  "%S" (with-current-buffer outorg-code-buffer
+                         major-mode)))
+                (splitted-mode-name
+                 (split-string mode-name "-mode"))
+                (language-name
+                 (if (> (length splitted-mode-name) 1)
+                     (car splitted-mode-name)
+                   (car (split-string mode-name "\\.")))))
+           (concat "#+begin_src " language-name)))
+        (forward-line)
+        (setq last-line-comment-p nil))
+       ;; line of code after line of code
+       (t (setq last-line-comment-p nil)))
+      (forward-line))))
+
+
+(defun outorg-convert-back-to-code ()
+  "")
+
 ;; ** Commands
 
-;; Additional outline commands (from `out-xtra').
+;; *** Edit as Org 
+
+(defun outorg-edit-as-org ()
+  "Convert and copy to temporary Org buffer"
+  (interactive)
+  (setq outorg-code-buffer (current-buffer))
+  (outorg-copy-and-convert))
+
+
+(defun outorg-save-edits ()
+  "Replace code-buffer content with (converted) edit-buffer content and
+  kill edit-buffer"
+  (interactive)
+  (with-current-buffer outorg-code-buffer
+    (erase-buffer))
+  (outorg-convert-and-copy))
+
+
+;; *** Additional outline commands (from `out-xtra').
 
 (defun outline-hide-sublevels (keep-levels)
   "Hide everything except the first KEEP-LEVEL headers."
