@@ -98,6 +98,9 @@
 (defvar outorg-code-buffer nil
   "The original code buffer")
 
+(defvar outorg-edit-whole-buffer-p nil
+  "Non-nil if the whole code-buffer is edited.")
+
 (defvar outorg-edited-content nil
   "The content of the edit buffer")
 
@@ -135,8 +138,9 @@
 
 (defun outorg-calc-outline-regexp ()
   "Calculate the outline regexp for the current mode."
-  (let* ((comment-start-no-space (replace-regexp-in-string 
-                                  "[[:space:]]+" "" comment-start))
+  (let* ((comment-start-no-space
+          (replace-regexp-in-string
+           "[[:space:]]+" "" comment-start))
          (comment-start-region
           (if (and
                comment-end
@@ -144,8 +148,8 @@
               comment-start-no-space
             (concat
              comment-start-no-space comment-start-no-space))))
-    ;; the "^" not needed by outline, but by outorg
-    (concat "\\(^" comment-start-region " \\)\\([*]+ \\)")))
+    ;; the "^" not needed by outline, but by outorg (?)
+    (concat "^" comment-start-region " [*]+ ")))
 
 ;; *** Calculate the outline-level
 
@@ -177,7 +181,7 @@
 
   (let ((org-fontify-whole-heading-line "") ; "\n?")
         (heading-1-regexp
-         (concat (substring outline-regexp 0 -1)
+         (concat (substring outline-regexp 0 -1) 
                  "\\{1\\} \\(.*" org-fontify-whole-heading-line "\\)"))
         (heading-2-regexp
          (concat (substring outline-regexp 0 -1)
@@ -225,26 +229,42 @@
     (outorg-fontify-headlines out-regexp)
     (outline-minor-mode 1)))
 
+(add-hook 'emacs-lisp-mode-hook 'outorg-hook-function)
+
 ;; *** Edit as Org-file
 
 (defun outorg-copy-and-convert ()
-  "Copy code buffer content to tmp-buffer and convert it to Org syntax"
+  "Copy code buffer content to tmp-buffer and convert it to Org syntax.
+If WHOLE-BUFFER-P is non-nil, copy the whole buffer, otherwise
+  the current subtree."
   (let* ((old-point (point))
-        (edit-buffer
-         (get-buffer-create
-          (generate-new-buffer-name "outorg-edit"))))
+         (edit-buffer
+          (get-buffer-create
+           (generate-new-buffer-name "*outorg-edit-buffer*"))))
     (save-restriction
       (widen)
+      ;; copy code buffer content
       (copy-to-buffer
        edit-buffer
-       (point-min)
-       (point-max))
-      (switch-to-buffer edit-buffer)
-      (funcall (outorg-get-buffer-mode outorg-code-buffer))
-      (goto-char old-point)
-     (save-excursion
+       (if outorg-edit-whole-buffer-p
+           (point-min)
+         (save-excursion
+           (outline-back-to-heading 'INVISIBLE-OK)))
+       (if outorg-edit-whole-buffer-p
+           (point-max)
+         (save-excursion
+           (outline-end-of-subtree)
+           (point)))))
+    ;; switch to edit buffer
+    (switch-to-buffer edit-buffer)
+    ;; activate programming language major mode and convert to org
+    (funcall (outorg-get-buffer-mode outorg-code-buffer))
+    (and outorg-edit-whole-buffer-p
+         (goto-char old-point)) 
+    (save-excursion
       (outorg-convert-to-org))
-     (org-mode))))
+    ;; change major mode to org-mode
+    (org-mode)))
 
 (defun outorg-convert-and-copy ()
   "Convert edit-buffer content back to code syntax and copy it to code buffer"
@@ -260,11 +280,23 @@
 
 (defun outorg-convert-to-org ()
   "Convert file content to Org Syntax"
-  (let ((last-line-comment-p nil))
+  (let* ((last-line-comment-p nil)
+         (mode-name
+          (format
+           "%S" (with-current-buffer outorg-code-buffer
+                  major-mode)))
+         (splitted-mode-name
+          (split-string mode-name "-mode"))
+         (language-name
+          (if (> (length splitted-mode-name) 1)
+              (car splitted-mode-name)
+            (car (split-string mode-name "\\."))))
+         (in-org-babel-load-languages-p
+          (assoc language-name org-babel-load-languages)))
     (goto-char (point-min))
     (while (not (eobp))
       (cond
-       ;; empty line
+       ;; empty line (do nothing)
        ((looking-at "^[[:space:]]*$"))
        ;; comment line after comment line or at
        ;; beginning of buffer
@@ -274,6 +306,19 @@
          (or (bobp) last-line-comment-p))
         (uncomment-region (point-at-bol) (point-at-eol))
         (setq last-line-comment-p t))
+       ;; line of code after comment line
+       ((and
+         (save-excursion
+           (not (eq (comment-on-line-p) (point-at-bol))))
+         last-line-comment-p)
+        (newline)
+        (forward-line -1)
+        (insert
+         (if in-org-babel-load-languages-p
+             (concat "#+begin_src " language-name)
+           "#+begin_example"))
+        (forward-line)
+        (setq last-line-comment-p nil))
        ;; comment line after line of code
        ((and
          (save-excursion
@@ -283,31 +328,12 @@
         (save-excursion
           (forward-line -1)
           (unless (looking-at "^[[:space:]]*$")
-              (newline))
-          (insert "#+end_src")
+            (newline))
+          (if in-org-babel-load-languages-p
+              (insert "#+end_src")
+            (insert "#+end_example"))
           (newline))
         (setq last-line-comment-p t))
-       ;; line of code after comment line
-       ((and
-         (save-excursion
-           (not (eq (comment-on-line-p) (point-at-bol))))
-         last-line-comment-p)
-        (newline 2)
-        (forward-line -1)
-        (insert
-         (let* ((mode-name
-                 (format
-                  "%S" (with-current-buffer outorg-code-buffer
-                         major-mode)))
-                (splitted-mode-name
-                 (split-string mode-name "-mode"))
-                (language-name
-                 (if (> (length splitted-mode-name) 1)
-                     (car splitted-mode-name)
-                   (car (split-string mode-name "\\.")))))
-           (concat "#+begin_src " language-name)))
-        (forward-line)
-        (setq last-line-comment-p nil))
        ;; line of code after line of code
        (t (setq last-line-comment-p nil)))
       (forward-line))))
@@ -316,14 +342,23 @@
 (defun outorg-convert-back-to-code ()
   "")
 
+(defun outorg-reset-global-vars ()
+  "Reset some global vars defined by outorg to initial values."
+  (setq  outorg-code-buffer nil
+         outorg-edit-whole-buffer-p nil))
+
+(defvar outorg-edited-content nil
+  "The content of the edit buffer")
+
 ;; ** Commands
 
 ;; *** Edit as Org 
 
-(defun outorg-edit-as-org ()
+(defun outorg-edit-as-org (arg)
   "Convert and copy to temporary Org buffer"
-  (interactive)
+  (interactive "P")
   (setq outorg-code-buffer (current-buffer))
+  (and arg (setq outorg-edit-whole-buffer-p t))
   (outorg-copy-and-convert))
 
 
@@ -333,7 +368,8 @@
   (interactive)
   (with-current-buffer outorg-code-buffer
     (erase-buffer))
-  (outorg-convert-and-copy))
+  (outorg-convert-and-copy)
+  (outorg-reset-global-vars))
 
 
 ;; *** Additional outline commands (from `out-xtra').
