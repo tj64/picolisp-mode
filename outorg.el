@@ -218,20 +218,6 @@
     (outorg-fontify-headlines out-regexp)
     (outline-minor-mode 1)))
 
-(defun outorg-kill-edit-buffer-hook-function ()
-  "Reset state of code-buffer when edit buffer is prematurely killed."
-  (when (eq (current-buffer)
-            (marker-buffer outorg-edit-buffer-marker))
-    (unless outorg-saving-edit-buffer-p
-      (and 
-       (switch-to-buffer
-        (marker-buffer outorg-code-buffer-marker))
-       ;; (goto-char
-       ;;  (marker-position outorg-code-buffer-marker))
-       (View-quit)))))
-
-;; FIXME
-;; (add-hook 'kill-buffer-hook 'outorg-kill-edit-buffer-hook-function)
 (add-hook 'emacs-lisp-mode-hook 'outorg-hook-function)
 
 ;; *** Edit as Org-file
