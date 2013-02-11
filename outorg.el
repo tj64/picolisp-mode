@@ -236,35 +236,28 @@
 
 ;; *** Edit as Org-file
 
-(defun outorg-view-buffer-exit-action (view-buffer)
-  "Copy edited content back to VIEW-BUFFER, i.e. outorg-code-buffer.
-This function is called when finished viewing buffer."
-  (unless
-      (and outorg-saving-edit-buffer-p
-           (eq (current-buffer)
-               (marker-buffer outorg-code-buffer-marker)))
-    (view-buffer (marker-buffer outorg-code-buffer-marker))
-    (error "You should not call `View-quit' while editing in
-    '*outorg-edit-buffer*"))
-  (save-excursion
-    (if outorg-edit-whole-buffer-p
-        (progn
-          (erase-buffer)
+(defun outorg-replace-code-with-edits ()
+  "Replace code-buffer contents with edits."
+  (let ((edit-buf (marker-buffer outorg-edit-buffer-marker))
+        (code-buf (marker-buffer outorg-code-buffer-marker)))
+    (with-current-buffer code-buf
+      (if outorg-edit-whole-buffer-p
+          (progn
+            (erase-buffer)
+            (insert-buffer-substring-no-properties
+             edit-buf (point-min) (point-max))
+            (goto-char (marker-position outorg-code-buffer-marker)))
+        (save-restriction
+          (narrow-to-region
+           (save-excursion
+             (outline-back-to-heading 'INVISIBLE-OK)
+             (point))
+           (save-excursion
+             (outline-end-of-subtree)
+             (point)))
+          (delete-region (point-min) (point-max))
           (insert-buffer-substring-no-properties
-           (marker-buffer outorg-edit-buffer-marker)
-           (point-min) (point-max))
-      (goto-char (marker-position outorg-code-buffer-marker))
-      (save-restriction
-        (narrow-to-region
-        (save-excursion
-         (outline-back-to-heading 'INVISIBLE-OK))
-         (save-excursion
-           (outline-end-of-subtree)
-           (point)))
-        (delete-region (point-min) (point-max))
-        (insert-buffer-substring-no-properties
-         (marker-buffer outorg-edit-buffer-marker)
-         (point-min) (point-max)))))
+           edit-buf (point-min) (point-max)))))
     (save-buffer)))
 
 (defun outorg-copy-and-convert ()
@@ -409,9 +402,9 @@ Assumes that edit-buffer major-mode has been set back to the
 With ARG, edit the whole buffer, otherwise the current subtree."
   (interactive "P")
   (setq outorg-code-buffer-marker (point-marker))
-  (view-buffer
-   (marker-buffer outorg-code-buffer-marker)
-   'outorg-view-buffer-exit-action)
+  ;; (view-buffer
+  ;;  (marker-buffer outorg-code-buffer-marker)
+  ;;  'outorg-view-buffer-exit-action)
   (and arg (setq outorg-edit-whole-buffer-p t))
   (outorg-copy-and-convert))
 
@@ -419,14 +412,15 @@ With ARG, edit the whole buffer, otherwise the current subtree."
   "Replace code-buffer content with (converted) edit-buffer content and
   kill edit-buffer"
   (interactive)
-  (setq outorg-saving-edit-buffer-p t)
+  ;; (setq outorg-saving-edit-buffer-p t)
   (funcall
    (outorg-get-buffer-mode
     (marker-buffer outorg-code-buffer-marker)))
   (outorg-convert-back-to-code)
-  (with-current-buffer
-      (marker-buffer outorg-code-buffer-marker)
-    (View-quit))
+  ;; (with-current-buffer
+  ;;     (marker-buffer outorg-code-buffer-marker)
+  ;;   (View-quit))
+  (outorg-replace-code-with-edits)
   (switch-to-buffer
    (marker-buffer outorg-code-buffer-marker))
   (goto-char
@@ -519,14 +513,14 @@ With ARG, edit the whole buffer, otherwise the current subtree."
 	    ["Hide Other" outline-hide-other t]
 	    ["Hide Sublevels" outline-hide-sublevels t]))
 
-	(defun outline-add-menu ()
+        (defun outline-add-menu ()
 	  (set-buffer-menubar (copy-sequence current-menubar))
 	  (add-menu nil "Outline" outline-menu))
 
 	(add-hook 'outline-minor-mode-hook 'outline-add-menu)
 	(add-hook 'outline-mode-hook 'outline-add-menu)
 	(add-hook 'outline-minor-mode-off-hook
-		    (function (lambda () (delete-menu-item '("Outline")))))))
+                  (function (lambda () (delete-menu-item '("Outline")))))))
 
   ;; Lucid Emacs or Emacs 18.
   (require 'outln-18)
