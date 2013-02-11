@@ -322,7 +322,7 @@ If WHOLE-BUFFER-P is non-nil, copy the whole buffer, otherwise
 
 (defun outorg-convert-back-to-code ()
   "Convert edit-buffer content back to programming language syntax.
-Assumes that edit-buffer major-mode has been set back to the
+Assume that edit-buffer major-mode has been set back to the
   programming-language major-mode of the associated code-buffer
   before this function is called."
   (let* ((inside-code-or-example-block-p nil))
@@ -357,7 +357,7 @@ Assumes that edit-buffer major-mode has been set back to the
             (erase-buffer)
             (insert-buffer-substring-no-properties
              edit-buf (point-min) (point-max))
-            (goto-char (marker-position outorg-code-buffer-marker)))
+            (goto-char (marker-position outorg-edit-buffer-marker)))
         (save-restriction
           (narrow-to-region
            (save-excursion
@@ -386,9 +386,6 @@ Assumes that edit-buffer major-mode has been set back to the
 With ARG, edit the whole buffer, otherwise the current subtree."
   (interactive "P")
   (setq outorg-code-buffer-marker (point-marker))
-  ;; (view-buffer
-  ;;  (marker-buffer outorg-code-buffer-marker)
-  ;;  'outorg-view-buffer-exit-action)
   (and arg (setq outorg-edit-whole-buffer-p t))
   (outorg-copy-and-convert))
 
@@ -396,18 +393,18 @@ With ARG, edit the whole buffer, otherwise the current subtree."
   "Replace code-buffer content with (converted) edit-buffer content and
   kill edit-buffer"
   (interactive)
+  (widen)
   (funcall
    (outorg-get-buffer-mode
     (marker-buffer outorg-code-buffer-marker)))
   (outorg-convert-back-to-code)
-  ;; (with-current-buffer
-  ;;     (marker-buffer outorg-code-buffer-marker)
-  ;;   (View-quit))
+  ;; (let ((old-edit-buf-marker-pos
+  ;;        (marker-position outorg-edit-buffer-marker)))
   (outorg-replace-code-with-edits)
   (switch-to-buffer
    (marker-buffer outorg-code-buffer-marker))
-  (goto-char
-   (marker-position outorg-code-buffer-marker))
+  ;; (goto-char
+  ;;  (marker-position outorg-code-buffer-marker)) ;)
   (kill-buffer
    (marker-buffer outorg-edit-buffer-marker))
   (outorg-reset-global-vars))
