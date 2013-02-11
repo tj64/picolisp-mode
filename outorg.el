@@ -10,26 +10,26 @@
 ;; ** Credits
 
 ;; This library is based on, or rather an extension of, Per Abrahamsen's
-;; 'out-xtra.el' (http://tinyurl.com/aql9p97), and may replace it in Lisp modes.
+;; 'out-xtra.el' (http://tinyurl.com/aql9p97), and may replace it many cases.
 ;; Some new ideas were taken from Fabrice Niessen's '.emacs'
-;; (http://www.mygooglest.com/fni/dot-emacs.html#sec-2) and from Eric Schulte's
-;; and Dan Davidson's 'Org-babel' (http://orgmode.org/worg/org-contrib/babel/).
+;; (http://www.mygooglest.com/fni/dot-emacs.html#sec-2), and some inspiration
+;; from Eric Schulte's and Dan Davidson's 'Org-babel'
+;; (http://orgmode.org/worg/org-contrib/babel/).
 
 ;; ** Commentary
 
 ;; This file provides (almost) the same nice extra features for outline minor
 ;; mode like Per Abrahamsen's 'out-xtra':
-;;
+
 ;; - Change default minor mode key prefix to `C-c'.
 ;; - Complete keybindings and menu support.
 ;; - Add command to show top level headers.
 ;; - Add command to hide all other entries than the one containing point.
-;;
+
 ;; `outorg' follows a different idea than `out-xtra': it consists of generic
-;; functionality that is loaded when needed via specific major-mode hooks
-;; (e.g. `emacs-lisp-mode-hook') instead of several blocks of major-mode
-;; specific functionality that are loaded in many occasions via the
-;; `outline-minor-mode-hook'.
+;; functionality that that calculates the adequate outline-regexp and
+;; outline-level for the active major-mode, rather than defining several blocks
+;; of major-mode specific functionality.
 
 ;; New features of `outorg' are:
 
@@ -40,11 +40,7 @@
 ;; '.emacs')
 
 ;; 3. Toggling between editing in Lisp mode and in Org mode, similar to the
-;; editing of source-code blocks in Org-mode, which might be edited either in
-;; Org mode or in a temporary buffer with the Emacs major-mode of the
-;; respective programming language activated.
-
-;; 4. Quick insertion of `outorg' file templates for new libraries.
+;; editing of source-code blocks in Org-mode.
 
 ;; It is highly recommended to use `outorg' together with `outline-magic' for
 ;; the Org-style `outline-cycle' command.
@@ -58,16 +54,18 @@
 ;; ** Installation
 
 ;; Insert
-;;   (require 'outorg)
+  ;; (require 'outorg)
 ;; in your .emacs file to install.  If you want a different prefix
 ;; key, insert first
-;;   (defvar outline-minor-mode-prefix "\C-c")
+  ;; (defvar outline-minor-mode-prefix "\C-c")
 ;; or whatever.  The prefix can only be changed before outline (minor)
- ;; mode is loaded.
+;; mode is loaded.
 
 ;; ** ChangeLog
 
-;; - 2013-02-08 Thorsten Jolitz: Versiion 0.9
+;; | date            | author(s)       | version |
+;; |-----------------+-----------------+---------|
+;; | <2013-02-11 Mo> | Thorsten Jolitz |     0.9 |
 
 ;; ** Bugs
 
@@ -80,7 +78,6 @@
 ;; * Requires
 
 (require 'outline)
-(require 'newcomment)
 (require 'org)
 
 ;; * Variables
@@ -95,14 +92,11 @@
 (defvar outline-minor-mode-prefix "\C-c"
   "New outline-minor-mode prefix.")
 
-(defvar outorg-code-buffer nil
-  "The original code buffer")
-
 (defvar outorg-edit-whole-buffer-p nil
   "Non-nil if the whole code-buffer is edited.")
 
-(defvar outorg-edited-content nil
-  "The content of the edit buffer")
+(defvar outorg-saving-edit-buffer-p nil
+  "Non-nil while saving the edit-buffer")
 
 ;; ** Hooks
 
@@ -206,11 +200,7 @@
 ;; *** Set outline-regexp und outline-level
 
 (defun outorg-set-local-outline-regexp-and-level (regexp &optional fun)
-  ;; Set `outline-regexp' locally to REGEXP and `outline-level' to FUN.
-  ;; Will not set either of these if one of them already have a local value.
-  ;; (or (assq 'outline-regexp (buffer-local-variables))
-  ;;     (assq 'outline-level (buffer-local-variables))
-      ;; (progn
+   "Set `outline-regexp' locally to REGEXP and `outline-level' to FUN."
 	(make-local-variable 'outline-regexp)
 	(setq outline-regexp regexp)
 	(if (null fun)
@@ -218,8 +208,7 @@
 	  (make-local-variable 'outline-level)
 	  (setq outline-level fun)))
 
-
-;; *** Outorg hook-function
+;; *** Outorg hook-functions
 
 (defun outorg-hook-function ()
   "Add this function to the major-mode hook of your choice"
@@ -229,16 +218,60 @@
     (outorg-fontify-headlines out-regexp)
     (outline-minor-mode 1)))
 
+(defun outorg-kill-edit-buffer-hook-function ()
+  "Reset state of code-buffer when edit buffer is prematurely killed."
+  (when (eq (current-buffer)
+            (marker-buffer outorg-edit-buffer-marker))
+    (unless outorg-saving-edit-buffer-p
+      (and 
+       (switch-to-buffer
+        (marker-buffer outorg-code-buffer-marker))
+       ;; (goto-char
+       ;;  (marker-position outorg-code-buffer-marker))
+       (View-quit)))))
+
+;; FIXME
+;; (add-hook 'kill-buffer-hook 'outorg-kill-edit-buffer-hook-function)
 (add-hook 'emacs-lisp-mode-hook 'outorg-hook-function)
 
 ;; *** Edit as Org-file
+
+(defun outorg-view-buffer-exit-action (view-buffer)
+  "Copy edited content back to VIEW-BUFFER, i.e. outorg-code-buffer.
+This function is called when finished viewing buffer."
+  (unless
+      (and outorg-saving-edit-buffer-p
+           (eq (current-buffer)
+               (marker-buffer outorg-code-buffer-marker)))
+    (view-buffer (marker-buffer outorg-code-buffer-marker))
+    (error "You should not call `View-quit' while editing in
+    '*outorg-edit-buffer*"))
+  (save-excursion
+    (if outorg-edit-whole-buffer-p
+        (progn
+          (erase-buffer)
+          (insert-buffer-substring-no-properties
+           (marker-buffer outorg-edit-buffer-marker)
+           (point-min) (point-max))
+      (goto-char (marker-position outorg-code-buffer-marker))
+      (save-restriction
+        (narrow-to-region
+        (save-excursion
+         (outline-back-to-heading 'INVISIBLE-OK))
+         (save-excursion
+           (outline-end-of-subtree)
+           (point)))
+        (delete-region (point-min) (point-max))
+        (insert-buffer-substring-no-properties
+         (marker-buffer outorg-edit-buffer-marker)
+         (point-min) (point-max)))))
+    (save-buffer)))
 
 (defun outorg-copy-and-convert ()
   "Copy code buffer content to tmp-buffer and convert it to Org syntax.
 If WHOLE-BUFFER-P is non-nil, copy the whole buffer, otherwise
   the current subtree."
-  (let* ((old-point (point))
-         (edit-buffer
+  (let* ((edit-buffer
           (get-buffer-create
            (generate-new-buffer-name "*outorg-edit-buffer*"))))
     (save-restriction
@@ -249,7 +282,8 @@ If WHOLE-BUFFER-P is non-nil, copy the whole buffer, otherwise
        (if outorg-edit-whole-buffer-p
            (point-min)
          (save-excursion
-           (outline-back-to-heading 'INVISIBLE-OK)))
+           (outline-back-to-heading 'INVISIBLE-OK)
+           (point)))
        (if outorg-edit-whole-buffer-p
            (point-max)
          (save-excursion
@@ -257,33 +291,25 @@ If WHOLE-BUFFER-P is non-nil, copy the whole buffer, otherwise
            (point)))))
     ;; switch to edit buffer
     (switch-to-buffer edit-buffer)
+    (goto-char
+     (if outorg-edit-whole-buffer-p
+           (marker-position outorg-code-buffer-marker)
+       (point-min)))
+    (setq outorg-edit-buffer-marker (point-marker)))
     ;; activate programming language major mode and convert to org
-    (funcall (outorg-get-buffer-mode outorg-code-buffer))
-    (and outorg-edit-whole-buffer-p
-         (goto-char old-point)) 
-    (save-excursion
-      (outorg-convert-to-org))
+    (funcall (outorg-get-buffer-mode
+              (marker-buffer outorg-code-buffer-marker)))
+    (outorg-convert-to-org)
     ;; change major mode to org-mode
-    (org-mode)))
-
-(defun outorg-convert-and-copy ()
-  "Convert edit-buffer content back to code syntax and copy it to code buffer"
-  (let ((edit-buffer (current-buffer)))
-    (outorg-convert-back-to-code)
-      (copy-to-buffer
-       outorg-code-buffer
-       (point-min)
-       (point-max))
-      (switch-to-buffer outorg-code-buffer)
-      (save-buffer)
-      (kill-buffer edit-buffer)))
+    (org-mode))
 
 (defun outorg-convert-to-org ()
   "Convert file content to Org Syntax"
   (let* ((last-line-comment-p nil)
          (mode-name
           (format
-           "%S" (with-current-buffer outorg-code-buffer
+           "%S" (with-current-buffer
+                    (marker-buffer outorg-code-buffer-marker)
                   major-mode)))
          (splitted-mode-name
           (split-string mode-name "-mode"))
@@ -292,7 +318,9 @@ If WHOLE-BUFFER-P is non-nil, copy the whole buffer, otherwise
               (car splitted-mode-name)
             (car (split-string mode-name "\\."))))
          (in-org-babel-load-languages-p
-          (assoc language-name org-babel-load-languages)))
+          (assq
+           (intern language-name)
+           org-babel-load-languages)))
     (goto-char (point-min))
     (while (not (eobp))
       (cond
@@ -338,39 +366,74 @@ If WHOLE-BUFFER-P is non-nil, copy the whole buffer, otherwise
        (t (setq last-line-comment-p nil)))
       (forward-line))))
 
-
 (defun outorg-convert-back-to-code ()
-  "")
+  "Convert edit-buffer content back to programming language syntax.
+Assumes that edit-buffer major-mode has been set back to the
+  programming-language major-mode of the associated code-buffer
+  before this function is called."
+  (let* ((inside-code-or-example-block-p nil))
+    (goto-char (point-min))
+    (while (not (eobp))
+      (cond
+       ;; empty line (do nothing)
+       ((looking-at "^[[:space:]]*$"))
+       ;; begin code/example block
+       ((looking-at "^[ \t]*#\\+begin_?")
+        (kill-whole-line)
+        (forward-line -1)
+        (setq inside-code-or-example-block-p t))
+       ;; end code/example block
+       ((looking-at "^[ \t]*#\\+end_?")
+        (kill-whole-line)
+        (forward-line -1)
+        (setq inside-code-or-example-block-p nil))
+       ;; line inside code/example block (do nothing)
+       (inside-code-or-example-block-p)
+       ;; not-empty line outside code/example block
+       (t (comment-region (point-at-bol) (point-at-eol))))
+      (forward-line))))
 
 (defun outorg-reset-global-vars ()
   "Reset some global vars defined by outorg to initial values."
-  (setq  outorg-code-buffer nil
-         outorg-edit-whole-buffer-p nil))
-
-(defvar outorg-edited-content nil
-  "The content of the edit buffer")
+  (set-marker outorg-code-buffer-marker nil)
+  (set-marker outorg-edit-buffer-marker nil)
+  (setq outorg-edit-whole-buffer-p nil
+         outorg-saving-edit-buffer-p nil))
 
 ;; ** Commands
 
 ;; *** Edit as Org 
 
 (defun outorg-edit-as-org (arg)
-  "Convert and copy to temporary Org buffer"
+  "Convert and copy to temporary Org buffer
+With ARG, edit the whole buffer, otherwise the current subtree."
   (interactive "P")
-  (setq outorg-code-buffer (current-buffer))
+  (setq outorg-code-buffer-marker (point-marker))
+  (view-buffer
+   (marker-buffer outorg-code-buffer-marker)
+   'outorg-view-buffer-exit-action)
   (and arg (setq outorg-edit-whole-buffer-p t))
   (outorg-copy-and-convert))
-
 
 (defun outorg-save-edits ()
   "Replace code-buffer content with (converted) edit-buffer content and
   kill edit-buffer"
   (interactive)
-  (with-current-buffer outorg-code-buffer
-    (erase-buffer))
-  (outorg-convert-and-copy)
+  (setq outorg-saving-edit-buffer-p t)
+  (funcall
+   (outorg-get-buffer-mode
+    (marker-buffer outorg-code-buffer-marker)))
+  (outorg-convert-back-to-code)
+  (with-current-buffer
+      (marker-buffer outorg-code-buffer-marker)
+    (View-quit))
+  (switch-to-buffer
+   (marker-buffer outorg-code-buffer-marker))
+  (goto-char
+   (marker-position outorg-code-buffer-marker))
+  (kill-buffer
+   (marker-buffer outorg-edit-buffer-marker))
   (outorg-reset-global-vars))
-
 
 ;; *** Additional outline commands (from `out-xtra').
 
