@@ -203,10 +203,9 @@
    "Set `outline-regexp' locally to REGEXP and `outline-level' to FUN."
 	(make-local-variable 'outline-regexp)
 	(setq outline-regexp regexp)
-	(if (null fun)
-	    ()
-	  (make-local-variable 'outline-level)
-	  (setq outline-level fun)))
+	(and fun
+             (make-local-variable 'outline-level)
+             (setq outline-level fun)))
 
 ;; *** Outorg hook-functions
 
@@ -376,8 +375,7 @@ Assumes that edit-buffer major-mode has been set back to the
   "Reset some global vars defined by outorg to initial values."
   (set-marker outorg-code-buffer-marker nil)
   (set-marker outorg-edit-buffer-marker nil)
-  (setq outorg-edit-whole-buffer-p nil
-         outorg-saving-edit-buffer-p nil))
+  (setq outorg-edit-whole-buffer-p nil))
 
 ;; ** Commands
 
@@ -398,7 +396,6 @@ With ARG, edit the whole buffer, otherwise the current subtree."
   "Replace code-buffer content with (converted) edit-buffer content and
   kill edit-buffer"
   (interactive)
-  ;; (setq outorg-saving-edit-buffer-p t)
   (funcall
    (outorg-get-buffer-mode
     (marker-buffer outorg-code-buffer-marker)))
