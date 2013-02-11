@@ -220,30 +220,6 @@
 
 ;; *** Edit as Org-file
 
-(defun outorg-replace-code-with-edits ()
-  "Replace code-buffer contents with edits."
-  (let ((edit-buf (marker-buffer outorg-edit-buffer-marker))
-        (code-buf (marker-buffer outorg-code-buffer-marker)))
-    (with-current-buffer code-buf
-      (if outorg-edit-whole-buffer-p
-          (progn
-            (erase-buffer)
-            (insert-buffer-substring-no-properties
-             edit-buf (point-min) (point-max))
-            (goto-char (marker-position outorg-code-buffer-marker)))
-        (save-restriction
-          (narrow-to-region
-           (save-excursion
-             (outline-back-to-heading 'INVISIBLE-OK)
-             (point))
-           (save-excursion
-             (outline-end-of-subtree)
-             (point)))
-          (delete-region (point-min) (point-max))
-          (insert-buffer-substring-no-properties
-           edit-buf (point-min) (point-max)))))
-    (save-buffer)))
-
 (defun outorg-copy-and-convert ()
   "Copy code buffer content to tmp-buffer and convert it to Org syntax.
 If WHOLE-BUFFER-P is non-nil, copy the whole buffer, otherwise
@@ -267,7 +243,8 @@ If WHOLE-BUFFER-P is non-nil, copy the whole buffer, otherwise
            (outline-end-of-subtree)
            (point)))))
     ;; switch to edit buffer
-    (switch-to-buffer edit-buffer)
+    (if (one-window-p) (split-window-sensibly))
+    (switch-to-buffer-other-window edit-buffer)
     (goto-char
      (if outorg-edit-whole-buffer-p
            (marker-position outorg-code-buffer-marker)
@@ -369,6 +346,30 @@ Assumes that edit-buffer major-mode has been set back to the
        ;; not-empty line outside code/example block
        (t (comment-region (point-at-bol) (point-at-eol))))
       (forward-line))))
+
+(defun outorg-replace-code-with-edits ()
+  "Replace code-buffer contents with edits."
+  (let ((edit-buf (marker-buffer outorg-edit-buffer-marker))
+        (code-buf (marker-buffer outorg-code-buffer-marker)))
+    (with-current-buffer code-buf
+      (if outorg-edit-whole-buffer-p
+          (progn
+            (erase-buffer)
+            (insert-buffer-substring-no-properties
+             edit-buf (point-min) (point-max))
+            (goto-char (marker-position outorg-code-buffer-marker)))
+        (save-restriction
+          (narrow-to-region
+           (save-excursion
+             (outline-back-to-heading 'INVISIBLE-OK)
+             (point))
+           (save-excursion
+             (outline-end-of-subtree)
+             (point)))
+          (delete-region (point-min) (point-max))
+          (insert-buffer-substring-no-properties
+           edit-buf (point-min) (point-max)))))
+    (save-buffer)))
 
 (defun outorg-reset-global-vars ()
   "Reset some global vars defined by outorg to initial values."
