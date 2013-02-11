@@ -95,6 +95,9 @@
 (defvar outorg-edit-whole-buffer-p nil
   "Non-nil if the whole code-buffer is edited.")
 
+(defvar outorg-initial-window-config nil
+  "Initial window-configuration when editing as Org.") 
+
 ;; ** Hooks
 
 (defvar outorg-hook nil
@@ -242,17 +245,26 @@ If WHOLE-BUFFER-P is non-nil, copy the whole buffer, otherwise
     ;; switch to edit buffer
     (if (one-window-p) (split-window-sensibly (get-buffer-window)))
     (switch-to-buffer-other-window edit-buffer)
-    (goto-char
-     (if outorg-edit-whole-buffer-p
-           (marker-position outorg-code-buffer-marker)
-       (point-min)))
+    (and outorg-edit-whole-buffer-p
+         (goto-char
+          (marker-position outorg-code-buffer-marker)))
     (setq outorg-edit-buffer-marker (point-marker)))
-    ;; activate programming language major mode and convert to org
-    (funcall (outorg-get-buffer-mode
-              (marker-buffer outorg-code-buffer-marker)))
-    (outorg-convert-to-org)
-    ;; change major mode to org-mode
-    (org-mode))
+  ;; activate programming language major mode and convert to org
+  (funcall (outorg-get-buffer-mode
+            (marker-buffer outorg-code-buffer-marker)))
+  (outorg-convert-to-org)
+  ;; change major mode to org-mode
+  (org-mode)
+  (if outorg-edit-whole-buffer-p
+      (progn
+        (org-first-headline-recenter)
+        (hide-sublevels 3)
+        (goto-char
+         (marker-position outorg-edit-buffer-marker))
+        (show-subtree))
+    (goto-char
+     (marker-position outorg-edit-buffer-marker))
+    (show-all)))
 
 (defun outorg-convert-to-org ()
   "Convert file content to Org Syntax"
@@ -363,7 +375,8 @@ Assume that edit-buffer major-mode has been set back to the
             (erase-buffer)
             (insert-buffer-substring-no-properties
              edit-buf edit-buf-point-min edit-buf-point-max)
-            (goto-char (marker-position outorg-edit-buffer-marker)))
+            ;; (goto-char (marker-position outorg-edit-buffer-marker))
+            )
         (save-restriction
           (narrow-to-region
            (save-excursion
@@ -381,8 +394,10 @@ Assume that edit-buffer major-mode has been set back to the
 (defun outorg-reset-global-vars ()
   "Reset some global vars defined by outorg to initial values."
   (set-marker outorg-code-buffer-marker nil)
+  (set-marker outorg-narrowed-code-buffer-marker nil)
   (set-marker outorg-edit-buffer-marker nil)
-  (setq outorg-edit-whole-buffer-p nil))
+  (setq outorg-edit-whole-buffer-p nil)
+  (setq outorg-initial-window-config nil))
 
 ;; ** Commands
 
@@ -394,6 +409,8 @@ With ARG, edit the whole buffer, otherwise the current subtree."
   (interactive "P")
   (setq outorg-code-buffer-marker (point-marker))
   (and arg (setq outorg-edit-whole-buffer-p t))
+  (setq outorg-initial-window-config
+        (current-window-configuration))
   (outorg-copy-and-convert))
 
 (defun outorg-save-edits ()
@@ -406,10 +423,14 @@ With ARG, edit the whole buffer, otherwise the current subtree."
     (marker-buffer outorg-code-buffer-marker)))
   (outorg-convert-back-to-code)
   (outorg-replace-code-with-edits)
-  (switch-to-buffer
-   (marker-buffer outorg-code-buffer-marker))
   (kill-buffer
    (marker-buffer outorg-edit-buffer-marker))
+  (set-window-configuration
+   outorg-initial-window-config)
+  ;; (switch-to-buffer
+  ;;  (marker-buffer outorg-code-buffer-marker))
+  ;; (goto-char
+  ;;  (marker-position outorg-code-buffer-marker))
   (outorg-reset-global-vars))
 
 ;; *** Additional outline commands (from `out-xtra').
