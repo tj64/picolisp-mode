@@ -95,9 +95,6 @@
 (defvar outorg-edit-whole-buffer-p nil
   "Non-nil if the whole code-buffer is edited.")
 
-(defvar outorg-saving-edit-buffer-p nil
-  "Non-nil while saving the edit-buffer")
-
 ;; ** Hooks
 
 (defvar outorg-hook nil
@@ -225,9 +222,9 @@
 If WHOLE-BUFFER-P is non-nil, copy the whole buffer, otherwise
   the current subtree."
   (let* ((edit-buffer
-          (get-buffer-create
-           (generate-new-buffer-name "*outorg-edit-buffer*"))))
+          (get-buffer-create "*outorg-edit-buffer*")))
     (save-restriction
+      (with-current-buffer edit-buffer (erase-buffer))
       (widen)
       ;; copy code buffer content
       (copy-to-buffer
@@ -243,7 +240,7 @@ If WHOLE-BUFFER-P is non-nil, copy the whole buffer, otherwise
            (outline-end-of-subtree)
            (point)))))
     ;; switch to edit buffer
-    (if (one-window-p) (split-window-sensibly))
+    (if (one-window-p) (split-window-sensibly (get-buffer-window)))
     (switch-to-buffer-other-window edit-buffer)
     (goto-char
      (if outorg-edit-whole-buffer-p
@@ -349,14 +346,23 @@ Assume that edit-buffer major-mode has been set back to the
 
 (defun outorg-replace-code-with-edits ()
   "Replace code-buffer contents with edits."
-  (let ((edit-buf (marker-buffer outorg-edit-buffer-marker))
-        (code-buf (marker-buffer outorg-code-buffer-marker)))
+  (let* ((edit-buf (marker-buffer outorg-edit-buffer-marker))
+         (code-buf (marker-buffer outorg-code-buffer-marker))
+         (edit-buf-point-min
+          (with-current-buffer edit-buf
+            (point-min)))
+         (edit-buf-point-max
+          (with-current-buffer edit-buf
+            (goto-char (point-max))
+            (unless (and (bolp) (looking-at "^$"))
+              (newline))
+            (point))))
     (with-current-buffer code-buf
       (if outorg-edit-whole-buffer-p
           (progn
             (erase-buffer)
             (insert-buffer-substring-no-properties
-             edit-buf (point-min) (point-max))
+             edit-buf edit-buf-point-min edit-buf-point-max)
             (goto-char (marker-position outorg-edit-buffer-marker)))
         (save-restriction
           (narrow-to-region
@@ -368,8 +374,9 @@ Assume that edit-buffer major-mode has been set back to the
              (point)))
           (delete-region (point-min) (point-max))
           (insert-buffer-substring-no-properties
-           edit-buf (point-min) (point-max)))))
-    (save-buffer)))
+           edit-buf edit-buf-point-min edit-buf-point-max)))
+      ;; (save-buffer) 
+      )))
 
 (defun outorg-reset-global-vars ()
   "Reset some global vars defined by outorg to initial values."
@@ -398,13 +405,9 @@ With ARG, edit the whole buffer, otherwise the current subtree."
    (outorg-get-buffer-mode
     (marker-buffer outorg-code-buffer-marker)))
   (outorg-convert-back-to-code)
-  ;; (let ((old-edit-buf-marker-pos
-  ;;        (marker-position outorg-edit-buffer-marker)))
   (outorg-replace-code-with-edits)
   (switch-to-buffer
    (marker-buffer outorg-code-buffer-marker))
-  ;; (goto-char
-  ;;  (marker-position outorg-code-buffer-marker)) ;)
   (kill-buffer
    (marker-buffer outorg-edit-buffer-marker))
   (outorg-reset-global-vars))
