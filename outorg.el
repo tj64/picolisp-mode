@@ -214,10 +214,9 @@
   (let ((out-regexp (outorg-calc-outline-regexp)))
     (outorg-set-local-outline-regexp-and-level
      out-regexp 'outorg-calc-outline-level)
-    (outorg-fontify-headlines out-regexp)
-    (outline-minor-mode 1)))
+    (outorg-fontify-headlines out-regexp)))
 
-(add-hook 'emacs-lisp-mode-hook 'outorg-hook-function)
+(add-hook 'outline-minor-mode-hook 'outorg-hook-function)
 
 ;; *** Edit as Org-file
 
