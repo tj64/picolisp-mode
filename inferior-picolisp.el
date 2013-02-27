@@ -2,7 +2,6 @@
 ;;;;;; Version: 1.2
 
 ;;; Copyright (c) 2009, 2012, 2013, Guillermo R. Palavecino, Thorsten Jolitz
-;;; (tj)
 
 ;; This file is NOT part of GNU emacs.
 
@@ -29,6 +28,9 @@
 ;;; INFERIOR PICOLISP MODE STUFF
 ;;;============================================================================
 
+(defconst inferior-picolisp-version "1.2"
+  "Verion-number of library")
+
 (defcustom inferior-picolisp-mode-hook nil
   "*Hook for customizing inferior-picolisp mode."
   :type 'hook
@@ -41,12 +43,9 @@
     (define-key m "\C-c\C-l" 'picolisp-load-file)
     m ) )
 
-;; added by tj 2012-03-11
 (defvar picolisp-local-program-name "./pil +")
-;; (defvar picolisp-local-program-name "./pil @lib/too.l +")
 (defvar picolisp-process-number 0)
 
-;; (defvar picolisp-program-name "/usr/bin/picolisp"
 (defvar picolisp-program-name "pil +"
   "The name of the program used to run Picolisp." )
 
@@ -166,7 +165,6 @@ Not needed when PicoLisp is run as Emacs subprocess."
        (expand-file-name "editor" pil-tmp-dir)))))
 
 
-;; added by tj 2012-03-11
 ;;;###autoload
 (defun run-picolisp-new-local (cmd)
   "Run a new inferior Picolisp process for a locally installed
