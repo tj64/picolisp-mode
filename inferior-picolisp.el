@@ -140,18 +140,18 @@ Defaults to a regexp ignoring all inputs of 0, 1, or 2 letters."
 
 (defun picolisp-disable-line-editor ()
   "Disable inbuild PicoLisp line-editor.
-Not needed when PicoLisp is run as Emacs subprocess."
+The line-editor is not needed when PicoLisp is run as Emacs subprocess."
   (let ((pil-tmp-dir (expand-file-name "~/.pil/")))
-  (and (member
-        "editor" (directory-files pil-tmp-dir ))
-      (rename-file
-       (expand-file-name "editor" pil-tmp-dir)
-       (expand-file-name "editor-orig" pil-tmp-dir)))
+    (and (member
+          "editor" (directory-files pil-tmp-dir ))
+         (rename-file
+          (expand-file-name "editor" pil-tmp-dir)
+          (expand-file-name "editor-orig" pil-tmp-dir)))
     (with-current-buffer
-     (find-file-noselect
-     (expand-file-name "editor" pil-tmp-dir))
-     (save-buffer)
-     (kill-buffer))))
+        (find-file-noselect
+         (expand-file-name "editor" pil-tmp-dir))
+      (save-buffer)
+      (kill-buffer))))
 
 (defun picolisp-reset-line-editor ()
   "Reset inbuild PicoLisp line-editor to original state."
