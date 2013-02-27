@@ -2,7 +2,6 @@ In order to get the picolisp-mode working correctly you have to add the followin
 
     (add-to-list 'load-path "<path-to>/picoLisp/lib/el")
     (require 'picolisp)   ;; Picolisp TransientSymbolsMarkup is automatically loaded
-    (setq picolisp-program-name "<path-to>/picoLisp/plmod")
 
 If you have also SLIME installed, it will suck all possible lisp extensions up (greedy bastard). So in order to get the correct file-association for picolisp files you'll have to also add this:
 

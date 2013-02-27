@@ -1,7 +1,7 @@
 ;;;;;; inferior-picolisp: Picolisp repl in a buffer.
 ;;;;;; Version: 1.1
 
-;;; Copyright (c) 2009, Guillermo R. Palavecino
+;;; Copyright (c) 2009, 2013, Guillermo R. Palavecino
 ;;; 2012, Thorsten Jolitz (tj)
 
 ;; This file is NOT part of GNU emacs.
@@ -42,10 +42,12 @@
     m ) )
 
 ;; added by tj 2012-03-11
-(defvar picolisp-local-program-name "./pil @lib/too.l +")
+(defvar picolisp-local-program-name "./pil +")
+;; (defvar picolisp-local-program-name "./pil @lib/too.l +")
 (defvar picolisp-process-number 0)
 
-(defvar picolisp-program-name "/usr/bin/picolisp"
+;; (defvar picolisp-program-name "/usr/bin/picolisp"
+(defvar picolisp-program-name "pil +"
   "The name of the program used to run Picolisp." )
 
 ;; Install the process communication commands in the picolisp-mode keymap.
@@ -130,13 +132,38 @@ Defaults to a regexp ignoring all inputs of 0, 1, or 2 letters."
   "Don't save anything matching `inferior-picolisp-filter-regexp'."
   (not (string-match inferior-picolisp-filter-regexp str)) )
 
-
 (defun picolisp-get-old-input ()
   "Snarf the sexp ending at point."
   (save-excursion
     (let ((end (point)))
       (backward-sexp)
       (buffer-substring (point) end) ) ) )
+
+(defun picolisp-disable-line-editor ()
+  "Disable inbuild PicoLisp line-editor.
+Not needed when PicoLisp is run as Emacs subprocess."
+  (let ((pil-tmp-dir (expand-file-name "~/.pil/")))
+  (and (member
+        "editor" (directory-files pil-tmp-dir ))
+      (rename-file
+       (expand-file-name "editor" pil-tmp-dir)
+       (expand-file-name "editor-orig" pil-tmp-dir)))
+    (with-current-buffer
+     (find-file-noselect
+     (expand-file-name "editor" pil-tmp-dir))
+     (save-buffer)
+     (kill-buffer))))
+
+(defun picolisp-reset-line-editor ()
+  "Reset inbuild PicoLisp line-editor to original state."
+  (let ((pil-tmp-dir (expand-file-name "~/.pil/")))
+    (if (member "editor-orig" (directory-files pil-tmp-dir))
+        (rename-file
+         (expand-file-name "editor-orig" pil-tmp-dir)
+         (expand-file-name "editor" pil-tmp-dir)
+         'OK-IF-ALREADY-EXISTS)
+      (delete-file
+       (expand-file-name "editor" pil-tmp-dir)))))
 
 
 ;; added by tj 2012-03-11
@@ -165,9 +192,11 @@ process buffer for a list of commands.)"
                      (number-to-string picolisp-process-number)
                      ">"))
   (let ((cmdlist (split-string cmd)))
+    (picolisp-disable-line-editor)
     (set-buffer
      (apply 'make-comint pl-proc-buf (car cmdlist)
                          nil (cdr cmdlist)))
+     (picolisp-reset-line-editor)
       (inferior-picolisp-mode) ) 
   (pop-to-buffer (concat "*" pl-proc-buf "*")) ) 
 
@@ -187,8 +216,10 @@ is run).
                          picolisp-program-name ) ) )
   (when (not (comint-check-proc "*picolisp*"))
     (let ((cmdlist (split-string cmd)))
+      (picolisp-disable-line-editor)
       (set-buffer (apply 'make-comint "picolisp" (car cmdlist)
                          nil (cdr cmdlist) ) )
+      (picolisp-reset-line-editor)
       (inferior-picolisp-mode) ) )
   (setq picolisp-program-name cmd)
   (setq picolisp-buffer "*picolisp*")
