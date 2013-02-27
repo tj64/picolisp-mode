@@ -1,8 +1,8 @@
 ;;;;;; inferior-picolisp: Picolisp repl in a buffer.
-;;;;;; Version: 1.1
+;;;;;; Version: 1.2
 
-;;; Copyright (c) 2009, 2013, Guillermo R. Palavecino
-;;; 2012, Thorsten Jolitz (tj)
+;;; Copyright (c) 2009, 2012, 2013, Guillermo R. Palavecino, Thorsten Jolitz
+;;; (tj)
 
 ;; This file is NOT part of GNU emacs.
 
