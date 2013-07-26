@@ -142,11 +142,36 @@ Defaults to a regexp ignoring all inputs of 0, 1, or 2 letters."
   "Disable inbuild PicoLisp line-editor.
 The line-editor is not needed when PicoLisp is run as Emacs subprocess."
   (let ((pil-tmp-dir (expand-file-name "~/.pil/")))
-    (and (member
-          "editor" (directory-files pil-tmp-dir ))
-         (rename-file
+    ;; renaming of existing editor file
+    (cond
+     ;; abnormal condition, something went wrong before
+     ((and
+       (member "editor" (directory-files pil-tmp-dir))
+       (member "editor-orig" (directory-files pil-tmp-dir)))
+      (let ((ed-size
+             (nth
+              7
+              (file-attributes
+               (expand-file-name "editor" pil-tmp-dir))))
+            (ed-orig-size
+             (nth
+              7
+              (file-attributes
+               (expand-file-name "editor-orig"  pil-tmp-dir)))))
+        (if (or (= ed-size 0)
+                (<= ed-size ed-orig-size))
+            (delete-file
+             (expand-file-name "editor" pil-tmp-dir))
+        (rename-file
+         (expand-file-name "editor" pil-tmp-dir)
+         (expand-file-name "editor-orig" pil-tmp-dir)
+         'OK-IF-ALREADY-EXISTS))))
+     ;; normal condition, only editor file exists
+     ((member "editor" (directory-files pil-tmp-dir ))
+      (rename-file
           (expand-file-name "editor" pil-tmp-dir)
-          (expand-file-name "editor-orig" pil-tmp-dir)))
+          (expand-file-name "editor-orig" pil-tmp-dir))))
+    ;; after renaming, create new empty editor file
     (with-current-buffer
         (find-file-noselect
          (expand-file-name "editor" pil-tmp-dir))
@@ -166,37 +191,36 @@ The line-editor is not needed when PicoLisp is run as Emacs subprocess."
 
 
 ;;;###autoload
-(defun run-picolisp-new-local (cmd)
-  "Run a new inferior Picolisp process for a locally installed
-PicoLisp, input and output via buffer `*picolisp<N>*'. Works only
-as intended, when called from inside a picolisp directory, e.g.
-from a dired buffer showing the top-level directory of a local
-picolisp installation. Otherwise, calls a global picolisp
-installation instead (with `picolisp-program-name', see function
-`picolisp-interactively-start-process'). If there is a process
-already running in `*picolisp<N>*', create a new process in
-buffer `*picolisp<N+1>*'. With argument, allows you to edit the
-command line (default is value of `picolisp-local-program-name').
-Runs the hook `inferior-picolisp-mode-hook' \(after the
-`comint-mode-hook' is run). \(Type \\[describe-mode] in the
-process buffer for a list of commands.)"
-
-  (interactive (list (if current-prefix-arg
-                         (read-string "Run Picolisp: " picolisp-local-program-name)
-                         picolisp-local-program-name) ) )
-  (setq picolisp-process-number (1+ picolisp-process-number))
-  (setq pl-proc-buf (concat
-                     "picolisp<"
-                     (number-to-string picolisp-process-number)
-                     ">"))
-  (let ((cmdlist (split-string cmd)))
+(defun run-picolisp-new (cmd &optional iorg-scrape-mode-p)
+  "Run a new inferior Picolisp process with command CMD.
+Input and output via buffer `*picolisp*<N>' or
+`*iorg-scrape*<N>', depending on `iorg-scrape-mode-p'."
+  (let* ((tmp-buf-name (make-temp-name "noname"))
+        (cmdlist (split-string cmd)))
     (picolisp-disable-line-editor)
     (set-buffer
-     (apply 'make-comint pl-proc-buf (car cmdlist)
-                         nil (cdr cmdlist)))
-     (picolisp-reset-line-editor)
-      (inferior-picolisp-mode) ) 
-  (pop-to-buffer (concat "*" pl-proc-buf "*")) ) 
+     (apply 'make-comint
+            tmp-buf-name
+            (car cmdlist)
+            nil
+            ;; hack for multi-word PicoLisp arguments:
+            ;; separate them with '_XXX_' in the 'cmd' arg
+            ;; instead of blanks
+            (mapcar
+             (lambda (--arg)
+               (replace-regexp-in-string
+                "_XXX_" " " --arg))
+             (cdr cmdlist) ) ) )
+    (rename-buffer
+     (if iorg-scrape-mode-p
+         "*iorg-scrape*"
+       "*picolisp*")
+     'UNIQUE)
+    (picolisp-reset-line-editor)
+    (if iorg-scrape-mode-p
+        (iorg-scrape-mode)
+      (inferior-picolisp-mode)))
+    (pop-to-buffer (current-buffer)) )
 
 
 ;;;###autoload
@@ -215,8 +239,18 @@ is run).
   (when (not (comint-check-proc "*picolisp*"))
     (let ((cmdlist (split-string cmd)))
       (picolisp-disable-line-editor)
-      (set-buffer (apply 'make-comint "picolisp" (car cmdlist)
-                         nil (cdr cmdlist) ) )
+      (set-buffer (apply 'make-comint
+                         "picolisp"
+                         (car cmdlist)
+                         nil
+                         ;; hack for multi-word PicoLisp arguments:
+                         ;; separate them with '_XXX_' in the 'cmd' arg
+                         ;; instead of blanks
+                         (mapcar
+                          (lambda (--arg)
+                            (replace-regexp-in-string
+                             "_XXX_" " " --arg))
+                            (cdr cmdlist) ) ) )
       (picolisp-reset-line-editor)
       (inferior-picolisp-mode) ) )
   (setq picolisp-program-name cmd)
