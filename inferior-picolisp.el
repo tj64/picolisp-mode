@@ -212,6 +212,8 @@ Input and output via buffer `*picolisp*<N>' or
                (replace-regexp-in-string
                 "_XXX_" " " --arg))
              (cdr cmdlist) ) ) )
+    ;; avoid racecondition between Emacs and PicoLisp
+    (sit-for 1 'NODISP)
     (rename-buffer
      (if iorg-scrape-mode-p
          "*iorg-scrape*"
