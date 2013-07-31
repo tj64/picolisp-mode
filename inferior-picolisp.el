@@ -44,7 +44,7 @@
     m ) )
 
 (defvar picolisp-local-program-name "./pil +")
-(defvar picolisp-process-number 0)
+;; (defvar picolisp-process-number 0)
 
 (defvar picolisp-program-name "pil +"
   "The name of the program used to run Picolisp." )
@@ -175,6 +175,7 @@ The line-editor is not needed when PicoLisp is run as Emacs subprocess."
     (with-current-buffer
         (find-file-noselect
          (expand-file-name "editor" pil-tmp-dir))
+      (erase-buffer)
       (save-buffer)
       (kill-buffer))))
 
