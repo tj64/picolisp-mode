@@ -17,14 +17,12 @@
 
 ;; ** Commentary
 
-;; *** Contact
-
 ;; For comments, bug reports, questions, etc use the picolisp mailing list,
 ;; the #picolisp channel on irc.freenode.net, or the author's emails given
 ;; above.
 
 ;; * Requires
- 
+
 (require 'picolisp)
 (require 'comint)
 
@@ -260,8 +258,27 @@ The line-editor is not needed when PicoLisp is run as Emacs subprocess."
       (delete-file
        (expand-file-name "editor" pil-tmp-dir)))))
 
+(defun picolisp-proc ()
+  "Return the current Picolisp process, starting one if necessary.
+See variable `picolisp-buffer'."
+  (unless (and picolisp-buffer
+               (get-buffer picolisp-buffer)
+               (comint-check-proc picolisp-buffer) )
+    (picolisp-interactively-start-process) )
+  (or (picolisp-get-process)
+      (error "No current process.  See variable `picolisp-buffer'") ) )
+
+(defun picolisp-get-process ()
+  "Return the current Picolisp process or nil if none is running."
+  (get-buffer-process
+   (if (eq major-mode 'inferior-picolisp-mode)
+       (current-buffer)
+     picolisp-buffer ) ) )
+
 ;; ** Commands
 
+;; *** Start REPL
+ 
 ;;;###autoload
 (defun run-picolisp-new (cmd &optional iorg-scrape-mode-p)
   "Run a new inferior Picolisp process with command CMD.
@@ -331,13 +348,23 @@ is run).
   (pop-to-buffer "*picolisp*") )
 ;;;###autoload (add-hook 'same-window-buffer-names "*picolisp*")
 
+(defun picolisp-interactively-start-process (&optional cmd)
+  "Start an inferior Picolisp process.  Return the process started.
+Since this command is run implicitly, always ask the user for the
+command to run."
+  (save-window-excursion
+    (run-picolisp
+     (read-string "Run Picolisp: " picolisp-program-name)) ) )
+
+;; *** Use REPL
+
 (defun picolisp-send-region (start end)
   "Send the current region to the inferior Picolisp process."
   (interactive "r")
   (let ((regionsubstring (replace-regexp-in-string "^
 " "" (buffer-substring start end) ) ) )
-    (comint-send-string 
-     (picolisp-proc) 
+    (comint-send-string
+     (picolisp-proc)
      (if (string= "" (car (last (split-string regionsubstring "
 " ) ) ) )
          regionsubstring
@@ -357,18 +384,6 @@ is run).
   "Send the previous sexp to the inferior Picolisp process."
   (interactive)
   (picolisp-send-region (save-excursion (backward-sexp) (point)) (point)) )
-
-(defun switch-to-picolisp (eob-p)
-  "Switch to the picolisp process buffer.
-With argument, position cursor at end of buffer."
-  (interactive "P")
-  (if (or (and picolisp-buffer (get-buffer picolisp-buffer))
-          (picolisp-interactively-start-process) )
-      (pop-to-buffer picolisp-buffer)
-    (error "No current process buffer.  See variable `picolisp-buffer'") )
-  (when eob-p
-    (push-mark)
-    (goto-char (point-max)) ) )
 
 (defun picolisp-send-region-and-go (start end)
   "Send the current region to the inferior Picolisp process.
@@ -392,35 +407,24 @@ Then switch to the process buffer."
                       ;; t because `load' needs an exact name
                       picolisp-source-modes t ) )
   ;; Check to see if buffer needs saved.
-  (comint-check-source file-name) 
+  (comint-check-source file-name)
   (setq picolisp-prev-l/c-dir/file
         (cons (file-name-directory file-name)
               (file-name-nondirectory file-name) ) )
   (comint-send-string
    (picolisp-proc) (concat "(load \"" file-name "\"\)\n" ) ) )
 
-(defun picolisp-proc ()
-  "Return the current Picolisp process, starting one if necessary.
-See variable `picolisp-buffer'."
-  (unless (and picolisp-buffer
-               (get-buffer picolisp-buffer)
-               (comint-check-proc picolisp-buffer) )
-    (picolisp-interactively-start-process) )
-  (or (picolisp-get-process)
-      (error "No current process.  See variable `picolisp-buffer'") ) )
-
-(defun picolisp-get-process ()
-  "Return the current Picolisp process or nil if none is running."
-  (get-buffer-process (if (eq major-mode 'inferior-picolisp-mode)
-                          (current-buffer)
-                        picolisp-buffer ) ) )
-
-(defun picolisp-interactively-start-process (&optional cmd)
-  "Start an inferior Picolisp process.  Return the process started.
-Since this command is run implicitly, always ask the user for the
-command to run."
-  (save-window-excursion
-    (run-picolisp (read-string "Run Picolisp: " picolisp-program-name)) ) )
+(defun switch-to-picolisp (eob-p)
+  "Switch to the picolisp process buffer.
+With argument, position cursor at end of buffer."
+  (interactive "P")
+  (if (or (and picolisp-buffer (get-buffer picolisp-buffer))
+          (picolisp-interactively-start-process) )
+      (pop-to-buffer picolisp-buffer)
+    (error "No current process buffer.  See variable `picolisp-buffer'") )
+  (when eob-p
+    (push-mark)
+    (goto-char (point-max)) ) )
 
 ;; * Menus and Keys
 ;; ** Mode Map
@@ -470,4 +474,3 @@ command to run."
 (run-hooks 'inferior-picolisp-load-hook)
 
 (provide 'inferior-picolisp)
-
