@@ -91,6 +91,9 @@ to continue it."
 ;; * Variables
 ;; ** Vars
 
+(defvar picolisp-emacs-as-editor-p nil
+  "If non-nil, use `eedit.l' instead of `edit.l'.")
+
 (defvar picolisp-local-program-name "./pil +")
 ;; (defvar picolisp-process-number 0)
 
@@ -212,6 +215,23 @@ these commands to determine defaults."
 
 ;; *** Deal with PicoLisp Line Editor
 
+(defun picolisp-get-editor-info ()
+  "Find out if Emacs is used as editor."
+  (let* ((editor-file (expand-file-name "editor" "~/.pil/"))
+         (editor-orig-file (expand-file-name "editor-orig" "~/.pil/"))
+         (ed-file
+          (cond
+           ((file-exists-p editor-file) editor-file)
+           ((file-exists-p editor-orig-file) editor-orig-file)
+           (t nil))))
+    (when ed-file
+      (with-current-buffer (find-file-noselect ed-file)
+        (goto-char (point-min))
+        (if (re-search-forward "eedit" nil 'NOERROR)
+            (setq picolisp-emacs-as-editor-p t)
+           (setq picolisp-emacs-as-editor-p nil))
+        (kill-buffer)))))
+
 (defun picolisp-disable-line-editor ()
   "Disable inbuild PicoLisp line-editor.
 The line-editor is not needed when PicoLisp is run as Emacs subprocess."
@@ -301,7 +321,9 @@ See variable `picolisp-buffer'."
 Input and output via buffer `*picolisp*<N>' or
 `*iorg-scrape*<N>', depending on `iorg-scrape-mode-p'."
   (let* ((tmp-buf-name (make-temp-name "noname"))
-        (cmdlist (split-string cmd)))
+         (cmdlist (split-string cmd)))
+    (unless picolisp-emacs-as-editor-p
+      (picolisp-get-editor-info))
     (picolisp-disable-line-editor)
     (set-buffer
      (apply 'make-comint
@@ -315,7 +337,9 @@ Input and output via buffer `*picolisp*<N>' or
              (lambda (--arg)
                (replace-regexp-in-string
                 "_XXX_" " " --arg))
-             (cdr cmdlist) ) ) )
+             (if picolisp-emacs-as-editor-p
+                 (cons "@lib/eedit.l" (cdr cmdlist))
+               (cons "@lib/edit.l" (cdr cmdlist)) ) ) ) )
     ;; avoid racecondition between Emacs and PicoLisp
     ;; TODO replace with filter solution
     (sit-for 1 'NODISP)
@@ -328,7 +352,7 @@ Input and output via buffer `*picolisp*<N>' or
     (if iorg-scrape-mode-p
         (iorg-scrape-mode)
       (inferior-picolisp-mode)))
-    (pop-to-buffer (current-buffer)) )
+  (pop-to-buffer (current-buffer)) )
 
 ;;;###autoload
 (defun run-picolisp (cmd)
@@ -342,22 +366,27 @@ is run).
 
   (interactive (list (if current-prefix-arg
                          (read-string "Run Picolisp: " picolisp-program-name)
-                         picolisp-program-name ) ) )
+                       picolisp-program-name ) ) )
   (when (not (comint-check-proc "*picolisp*"))
     (let ((cmdlist (split-string cmd)))
+      (unless picolisp-emacs-as-editor-p
+        (picolisp-get-editor-info))
       (picolisp-disable-line-editor)
-      (set-buffer (apply 'make-comint
-                         "picolisp"
-                         (car cmdlist)
-                         nil
-                         ;; hack for multi-word PicoLisp arguments:
-                         ;; separate them with '_XXX_' in the 'cmd' arg
-                         ;; instead of blanks
-                         (mapcar
-                          (lambda (--arg)
-                            (replace-regexp-in-string
-                             "_XXX_" " " --arg))
-                            (cdr cmdlist) ) ) )
+      (set-buffer
+       (apply 'make-comint
+              "picolisp"
+              (car cmdlist)
+              nil
+              ;; hack for multi-word PicoLisp arguments:
+              ;; separate them with '_XXX_' in the 'cmd' arg
+              ;; instead of blanks
+              (mapcar
+               (lambda (--arg)
+                 (replace-regexp-in-string
+                  "_XXX_" " " --arg))
+             (if picolisp-emacs-as-editor-p
+                 (cons "@lib/eedit.l" (cdr cmdlist))
+               (cons "@lib/edit.l" (cdr cmdlist)) ) ) ) )
       (picolisp-reset-line-editor)
       (inferior-picolisp-mode) ) )
   (setq picolisp-program-name cmd)
