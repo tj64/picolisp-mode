@@ -322,8 +322,7 @@ Input and output via buffer `*picolisp*<N>' or
 `*iorg-scrape*<N>', depending on `iorg-scrape-mode-p'."
   (let* ((tmp-buf-name (make-temp-name "noname"))
          (cmdlist (split-string cmd)))
-    (unless picolisp-emacs-as-editor-p
-      (picolisp-get-editor-info))
+    (picolisp-get-editor-info)
     (picolisp-disable-line-editor)
     (set-buffer
      (apply 'make-comint
@@ -369,8 +368,7 @@ is run).
                        picolisp-program-name ) ) )
   (when (not (comint-check-proc "*picolisp*"))
     (let ((cmdlist (split-string cmd)))
-      (unless picolisp-emacs-as-editor-p
-        (picolisp-get-editor-info))
+      (picolisp-get-editor-info)
       (picolisp-disable-line-editor)
       (set-buffer
        (apply 'make-comint
