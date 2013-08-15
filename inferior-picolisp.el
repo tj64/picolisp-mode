@@ -195,9 +195,7 @@ these commands to determine defaults."
 ;; * Functions
 ;; ** Non-interactive Functions
 
-(defun picolisp-input-filter (str)
-  "Don't save anything matching `inferior-picolisp-filter-regexp'."
-  (not (string-match inferior-picolisp-filter-regexp str)) )
+;; *** Utilities 
 
 (defun picolisp-get-old-input ()
   "Snarf the sexp ending at point."
@@ -205,6 +203,14 @@ these commands to determine defaults."
     (let ((end (point)))
       (backward-sexp)
       (buffer-substring (point) end) ) ) )
+
+;; *** Filters
+
+(defun picolisp-input-filter (str)
+  "Don't save anything matching `inferior-picolisp-filter-regexp'."
+  (not (string-match inferior-picolisp-filter-regexp str)) )
+
+;; *** Deal with PicoLisp Line Editor
 
 (defun picolisp-disable-line-editor ()
   "Disable inbuild PicoLisp line-editor.
@@ -258,6 +264,16 @@ The line-editor is not needed when PicoLisp is run as Emacs subprocess."
       (delete-file
        (expand-file-name "editor" pil-tmp-dir)))))
 
+;; *** Get PicoLisp Process
+
+(defun picolisp-interactively-start-process (&optional cmd)
+  "Start an inferior Picolisp process.  Return the process started.
+Since this command is run implicitly, always ask the user for the
+command to run."
+  (save-window-excursion
+    (run-picolisp
+     (read-string "Run Picolisp: " picolisp-program-name)) ) )
+
 (defun picolisp-proc ()
   "Return the current Picolisp process, starting one if necessary.
 See variable `picolisp-buffer'."
@@ -301,6 +317,7 @@ Input and output via buffer `*picolisp*<N>' or
                 "_XXX_" " " --arg))
              (cdr cmdlist) ) ) )
     ;; avoid racecondition between Emacs and PicoLisp
+    ;; TODO replace with filter solution
     (sit-for 1 'NODISP)
     (rename-buffer
      (if iorg-scrape-mode-p
@@ -347,14 +364,6 @@ is run).
   (setq picolisp-buffer "*picolisp*")
   (pop-to-buffer "*picolisp*") )
 ;;;###autoload (add-hook 'same-window-buffer-names "*picolisp*")
-
-(defun picolisp-interactively-start-process (&optional cmd)
-  "Start an inferior Picolisp process.  Return the process started.
-Since this command is run implicitly, always ask the user for the
-command to run."
-  (save-window-excursion
-    (run-picolisp
-     (read-string "Run Picolisp: " picolisp-program-name)) ) )
 
 ;; *** Use REPL
 
@@ -431,7 +440,8 @@ With argument, position cursor at end of buffer."
 
 (defvar inferior-picolisp-mode-map
   (let ((m (make-sparse-keymap)))
-    (define-key m "\M-\C-x" 'picolisp-send-definition) ;gnu convention
+    ;; gnu convention
+    (define-key m "\M-\C-x" 'picolisp-send-definition)
     (define-key m "\C-x\C-e" 'picolisp-send-last-sexp)
     (define-key m "\C-c\C-l" 'picolisp-load-file)
     m ) )
