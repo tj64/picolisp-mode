@@ -147,7 +147,7 @@
 
   ;; This is just to avoid tabsize-variations fuck-up.
   (make-local-variable 'indent-tabs-mode)
-  (setq indent-tabs-mode)
+  (setq indent-tabs-mode nil)
 
   (setq dabbrev-case-fold-search t)
   (setq dabbrev-case-replace nil)
