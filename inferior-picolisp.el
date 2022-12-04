@@ -1,33 +1,25 @@
-;; * inferior-picolisp.el --- picolisp repl in a buffer
-;; ** MetaData
-;;   :PROPERTIES:
-;;   :copyright: Guillermo_R._Palavecino Thorsten_Jolitz
-;;   :copyright-since: 2009
-;;   :version:  1.2
-;;   :licence:  GPL2+
-;;   :licence-url: http://www.gnu.org/licenses/
-;;   :part-of-emacs: no
-;;   :git-repo: https://github.com/tj64/iorg
-;;   :git-clone: git@github.com:tj64/iorg.git
-;;   :authors: Guillermo_R._Palavecino Thorsten_Jolitz
-;;   :contact: <grpala@gmail.com> <tjolitz@gmail.com>
-;;   :inspiration:  cmuscheme.el
-;;   :keywords: emacs picolisp comint repl iorg
-;;   :END:
+;;; inferior-picolisp.el --- Comint Mode for Picolisp  -*- lexical-binding: t; -*-
 
-;; ** Commentary
+;; Copyright (C) 2009-today Thorsten Jolitz
 
+;; Authors: Guillermo R. Palavecino
+;;          Thorsten Jolitz
+;; Keywords: emacs picolisp comint repl org
+;; Homepage: https://orgmode.org
+
+;; This file is NOT part of GNU Emacs.
+
+;;; Commentary:
 ;; For comments, bug reports, questions, etc use the picolisp mailing list,
-;; the #picolisp channel on irc.freenode.net, or the author's emails given
-;; above.
+;; the #picolisp channel on irc.freenode.net
 
-;; * Requires
+;;; Requires
 
 (require 'picolisp)
 (require 'comint)
 
-;; * Mode definitions
-;; ** Inferior Picolisp Mode
+;;; Mode definitions
+;; Inferior Picolisp Mode
 
 (define-derived-mode inferior-picolisp-mode comint-mode "Inferior Picolisp"
   "Major mode for interacting with an inferior Picolisp process.
@@ -87,9 +79,9 @@ to continue it."
   (setq mode-line-process '(":%s"))
   (setq comint-input-ring-file-name "~/.pil_history") )
 
-;; * Hooks
-;; * Variables
-;; ** Vars
+;;; Hooks
+;;; Variables
+;; Vars
 
 (defvar picolisp-emacs-as-editor-p nil
   "If non-nil, use `eedit.l' instead of `edit.l'.")
@@ -156,19 +148,19 @@ larger, more sophisticated package for running inferior Lisp and
 Picolisp processes. The approach taken here is for a minimal,
 simple implementation. Feel free to extend it." )
 
-;; ** Consts
+;;; Consts
 
 (defconst inferior-picolisp-version "1.2"
   "Verion-number of library")
 
-;; ** Customs
-;; *** Custom Groups
+;;; Customs
+;; Custom Groups
 
 (defgroup picolisp nil
   "Run an Picolisp process in a buffer."
   :group 'picolisp )
 
-;; *** Custom Vars
+;; Custom Vars
 
 (defcustom inferior-picolisp-mode-hook nil
   "*Hook for customizing inferior-picolisp mode."
@@ -195,10 +187,10 @@ these commands to determine defaults."
   :type '(repeat function)
   :group 'picolisp )
 
-;; * Functions
-;; ** Non-interactive Functions
+;;; Functions
+;; Non-interactive Functions
 
-;; *** Utilities 
+;; Utilities
 
 (defun picolisp-get-old-input ()
   "Snarf the sexp ending at point."
@@ -207,13 +199,13 @@ these commands to determine defaults."
       (backward-sexp)
       (buffer-substring (point) end) ) ) )
 
-;; *** Filters
+;; Filters
 
 (defun picolisp-input-filter (str)
   "Don't save anything matching `inferior-picolisp-filter-regexp'."
   (not (string-match inferior-picolisp-filter-regexp str)) )
 
-;; *** Deal with PicoLisp Line Editor
+;; Deal with PicoLisp Line Editor
 
 (defun picolisp-get-editor-info ()
   "Find out if Emacs is used as editor."
@@ -284,7 +276,7 @@ The line-editor is not needed when PicoLisp is run as Emacs subprocess."
       (delete-file
        (expand-file-name "editor" pil-tmp-dir)))))
 
-;; *** Get PicoLisp Process
+;; Get PicoLisp Process
 
 (defun picolisp-interactively-start-process (&optional cmd)
   "Start an inferior Picolisp process.  Return the process started.
@@ -311,9 +303,9 @@ See variable `picolisp-buffer'."
        (current-buffer)
      picolisp-buffer ) ) )
 
-;; ** Commands
+;;; Commands
 
-;; *** Start REPL
+;; Start REPL
  
 ;;;###autoload
 (defun run-picolisp-new (cmd &optional iorg-scrape-mode-p)
@@ -392,7 +384,7 @@ is run).
   (pop-to-buffer "*picolisp*") )
 ;;;###autoload (add-hook 'same-window-buffer-names "*picolisp*")
 
-;; *** Use REPL
+;; Use REPL
 
 (defun picolisp-send-region (start end)
   "Send the current region to the inferior Picolisp process."
@@ -462,8 +454,8 @@ With argument, position cursor at end of buffer."
     (push-mark)
     (goto-char (point-max)) ) )
 
-;; * Menus and Keys
-;; ** Mode Map
+;;; Menus and Keys
+;; Mode Map
 
 (defvar inferior-picolisp-mode-map
   (let ((m (make-sparse-keymap)))
@@ -473,7 +465,7 @@ With argument, position cursor at end of buffer."
     (define-key m "\C-c\C-l" 'picolisp-load-file)
     m ) )
 
-;; ** Menus
+;; Menus
 
 (let ((map (lookup-key picolisp-mode-map [menu-bar picolisp])))
   (define-key map [separator-eval] '("--"))
@@ -492,7 +484,7 @@ With argument, position cursor at end of buffer."
   (define-key map [send-sexp]
     '("Evaluate Last S-expression" . picolisp-send-last-sexp) ) )
 
-;; ** Keys
+;; Keys
 
 ;; Install the process communication commands in the picolisp-mode keymap.
 ;; gnu convention
@@ -507,7 +499,7 @@ With argument, position cursor at end of buffer."
 (define-key picolisp-mode-map "\C-c\C-l" 'picolisp-load-file)
 
 
-;; * Run hooks and provide
+;;; Run hooks and provide
 (run-hooks 'inferior-picolisp-load-hook)
 
 (provide 'inferior-picolisp)
