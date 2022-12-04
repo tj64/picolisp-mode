@@ -1,32 +1,33 @@
-;;;;;; picolisp-mode: Major mode to edit picoLisp.
-;;;;;; Version: 1.3
+;;; picolisp-mode --- Major mode to edit picoLisp.
+;; Version: 1.3
 
-;;; Copyright (c) 2009, Guillermo R. Palavecino
-;;; Copyright (c) 2011, 2012 Thorsten Jolitz
+;; Copyright (c) 2009, Guillermo R. Palavecino
+;; Copyright (C) 2010-today Thorsten Jolitz
+
+;; Authors: Guillermo R. Palavecino
+;;          Thorsten Jolitz
+;; Keywords: emacs picolisp
+;; Homepage: https://orgmode.org
 
 ;; This file is NOT part of GNU emacs.
 
-;;;; Credits:
+;;; Credits:
 ;; It's based on GNU emacs' lisp-mode and scheme-mode.
 ;; Some bits were taken from paredit.el
 ;; Two functions were copied from Xah Lee (http://xahlee.org/)
 ;;
-;;;; Contact:
-;; For comments, bug reports, questions, etc, you can contact the
-;; first author via IRC to the user named grpala (or armadillo) on
-;; irc.freenode.net in the #picolisp channel or via email to the
-;; author's nickname at gmail.com 
-;; 
-;; Or contact the second author and curent maintainer via email: 
-;; t <lastname in lowercase letters> AT gmail DOT com
-;; 
-;;;; License:
+;;; Commentary:
+;; For comments, bug reports, questions, etc use the picolisp mailing list,
+;; the #picolisp channel on irc.freenode.net
+;;
+;; License:
 ;; This work is released under the GPL 2 or (at your option) any later
 ;; version.
 
-
+;;; Requires
 (require 'lisp-mode)
 
+;;; Customs
 (defcustom picolisp-parsep t
   "This is to toggle picolisp-mode's multi-line s-exps closing parens separation capability."
   :type 'boolean
@@ -40,6 +41,7 @@
   :group 'picolisp
   :type 'integer )
 
+;;; Vars
 (defvar picolisp-mode-syntax-table
   (let ((st (make-syntax-table))
         (i 0) )
@@ -95,7 +97,8 @@
 (defvar picolisp-mode-abbrev-table nil)
 (define-abbrev-table 'picolisp-mode-abbrev-table ())
 
-
+;;; Functions
+;; Non-interactive Functions
 (defun picolisp-mode-variables ()
   (set-syntax-table picolisp-mode-syntax-table)
   ;;(setq local-abbrev-table picolisp-mode-abbrev-table)
@@ -196,7 +199,7 @@
   "Keymap for Picolisp mode.
 All commands in `lisp-mode-shared-map' are inherited by this map." )
 
-
+
 ;;;###autoload
 (defun picolisp-mode ()
   "Major mode for editing Picolisp code.
@@ -240,7 +243,7 @@ See `run-hooks'."
   :type 'hook
   :group 'picolisp )
 
-
+
 (defconst picolisp-font-lock-keywords-1
   (eval-when-compile
     (list
@@ -282,7 +285,7 @@ See `run-hooks'."
       '(1 font-lock-preprocessor-face) ) ) )
   "Subdued expressions to highlight in Picolisp modes." )
 
-
+
 (defconst picolisp-font-lock-keywords-2
   (append picolisp-font-lock-keywords-1
           (eval-when-compile
@@ -375,7 +378,7 @@ See `run-hooks'."
                       "timeout" "mail" "test" "bye" ) t )
                "\\>" ) 1 ) ) ) )
   "Gaudy expressions to highlight in Picolisp modes." )
-
+
 (defvar picolisp-font-lock-keywords picolisp-font-lock-keywords-1
   "Default expressions to highlight in Picolisp modes." )
 
@@ -393,8 +396,8 @@ See `run-hooks'."
        (forward-comment (point-max))
        (if (eq (char-after) ?\() 2 0) ) )
 
-
-;; Indentation functions
+
+;;; Indentation functions
 
 ;; Copied from lisp-indent-line,
 ;; because Picolisp doesn't care about how many comment chars you use.
@@ -482,7 +485,7 @@ rigidly along with this one."
                    state indent-point normal-indent ) ) ) ) ) )
 
 
-;;; Some functions are different in picoLisp
+;; Some functions are different in picoLisp
 (defun picolisp-indent (state indent-point normal-indent)
   (let ((lisp-body-indent picolisp-body-indent))
     (lisp-indent-defform state indent-point) ) )
@@ -495,8 +498,8 @@ rigidly along with this one."
 	(goto-char (car (cdr state)))
 	(+ 1 (current-column)) ) ) )
 
-
-;;; This is to space closing parens when they close a previous line.
+
+;; This is to space closing parens when they close a previous line.
 (defun picolisp-parensep ()
   (save-excursion
     (condition-case nil     ; This is to avoid fuck-ups when there are
@@ -536,7 +539,7 @@ rigidly along with this one."
             (when picolisp-parsep
               (insert " ") ) ) ) ) ) )
 
-
+
 ;; Parser functions
   
 (defun picolisp-current-parse-state ()
@@ -579,7 +582,7 @@ Assumes that `picolisp-in-string-p' is false, so that it need not handle
 
 (add-to-list 'auto-mode-alist '("\\.l$" . picolisp-mode))
 
-
+
 ;; The following two functions implement the K and Q (macro)
 ;; functionality used in Vi while editing a buffer opened from the
 ;; PicoLisp command-line with the 'edit' function.
@@ -642,7 +645,7 @@ does\)."
       (insert "(0)")
       (save-buffers-kill-terminal 1))))
 
-
+
 ;; The following two functions have been written by Xah Lee and copied
 ;; from: http://ergoemacs.org/emacs/elisp_get-selection-or-unit.html
 
@@ -748,7 +751,7 @@ The main differences are:
     (vector (buffer-substring-no-properties p1 p2) p1 p2 )
     ) )
 
-
+
 ;; tsm-mode
 (require 'tsm)
 
