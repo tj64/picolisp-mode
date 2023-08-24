@@ -7,7 +7,8 @@
 ;; Authors: Guillermo R. Palavecino
 ;;          Thorsten Jolitz
 ;; Keywords: emacs picolisp
-;; Homepage: https://orgmode.org
+;; Homepage: https://github.com/tj64/picolisp-mode
+;; SPDX-License-Identifier: GPL-2.0-or-later
 
 ;; This file is NOT part of GNU emacs.
 
