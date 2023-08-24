@@ -1,4 +1,4 @@
-;;; picolisp-mode --- Major mode to edit picoLisp.
+;;; picolisp.el --- Major mode to edit picoLisp.
 ;; Version: 1.3
 
 ;; Copyright (c) 2009, Guillermo R. Palavecino
@@ -762,3 +762,5 @@ The main differences are:
    (font-lock-add-keywords 'inferior-picolisp-mode tsm-lock) ) ) 
 
 (provide 'picolisp)
+
+;;; picolisp.el ends here
